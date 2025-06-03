@@ -9,13 +9,13 @@
   "categories": [
     "Other"
   ],
-  "activationEvents": [],
+  "activationEvents": ["*"],
   "main": "./dist/extension.js",
   "contributes": {
     "commands": [
       {
-        "command": "predic.helloWorld",
-        "title": "Hello World"
+        "command": "predic.toggle",
+        "title": "Toggle Predic"
       }
     ]
   },
