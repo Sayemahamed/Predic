@@ -1,2 +1,7 @@
 node_modules/
 .vscode/
+dist/
+
+# Dependencies
+package-lock.json
+bun.lock
