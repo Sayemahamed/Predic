@@ -1,65 +1,123 @@
 import * as vscode from 'vscode';
+import * as path from 'path';
+import * as fs from 'fs';
+import { pipeline, TextGenerationPipeline } from '@xenova/transformers';
 
-export function activate(context: vscode.ExtensionContext) {
+// --- Start of Model Handling Logic ---
 
-    // console.log('Congratulations, your extension "Predic" is active with multi-context capabilities!');
+let pipelineInstance: Promise<TextGenerationPipeline> | null = null;
+
+/**
+ * Initializes and retrieves the singleton instance of the text generation pipeline.
+ * @param cachePath The absolute path to the directory where models should be stored.
+ * @param progress_callback A function to report model loading progress.
+ */
+async function getPipeline(cachePath: string, progress_callback?: Function): Promise<TextGenerationPipeline> {
+    if (pipelineInstance === null) {
+        // Dynamically import the 'env' object from the library.
+        const { env } = await import('@xenova/transformers');
+        
+        // Define the models directory within the provided cache path.
+        const modelsDir = path.join(cachePath, 'models');
+        
+        // Ensure the directory exists before setting the cache path.
+        if (!fs.existsSync(modelsDir)) {
+            fs.mkdirSync(modelsDir, { recursive: true });
+        }
+        
+        // Set the cache directory for transformers.js
+        env.cacheDir = modelsDir;
+        console.log(`Transformers.js cache path is set to: ${env.cacheDir}`);
+
+        // Create the pipeline promise. This will download the model on the first run.
+        pipelineInstance = pipeline('text-generation', 'onnx-community/gemma-3-1b-it-ONNX-GQA', {
+            progress_callback,
+        });
+    }
+    return pipelineInstance;
+}
+
+/**
+ * Runs the Gemma model to get a code completion suggestion.
+ * @param generator The initialized pipeline instance.
+ * @param prompt The code context from the editor.
+ */
+async function runGemma(generator: TextGenerationPipeline, prompt: string): Promise<string> {
+    const messages = [
+        { role: "system", content: "You are a helpful code completion assistant. Complete the user's code. Provide only the code completion, without any explanation or repeating the user's code." },
+        { role: "user", content: prompt },
+    ];
+
+    const output = await generator(messages, {
+        max_new_tokens: 64,
+        do_sample: true,
+        temperature: 0.7,
+        top_p: 0.9,
+    });
+
+    // Cast the output to 'any' to safely access 'generated_text'.
+    const lastMessage = (output[0] as any).generated_text.at(-1);
+    return lastMessage ? lastMessage.content.trim() : '';
+}
+
+// --- End of Model Handling Logic ---
+
+
+export async function activate(context: vscode.ExtensionContext) {
+    console.log('Predic is now active in OFFLINE mode!');
+    const statusBarItem = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Left);
+    statusBarItem.text = "$(loading~spin) Predic: Initializing...";
+    statusBarItem.show();
+    context.subscriptions.push(statusBarItem);
+
+    // FIXED: Switched to the deprecated but more direct `globalStoragePath`
+    // to prevent the 'undefined' path error. This is a common workaround for this issue.
+    const storagePath = context.globalStoragePath;
+
+    // Added a more explicit check to ensure the path is a valid, non-empty string.
+    if (typeof storagePath !== 'string' || storagePath.length === 0) {
+        const errorMessage = "Could not determine the extension's storage path. Predic cannot start.";
+        vscode.window.showErrorMessage(errorMessage);
+        console.error(errorMessage);
+        statusBarItem.text = "$(error) Predic: Failed";
+        return;
+    }
+
+    let completionPipeline: TextGenerationPipeline;
+
+    try {
+        statusBarItem.text = "$(loading~spin) Predic: Loading AI model...";
+        completionPipeline = await getPipeline(storagePath, (progress: any) => {
+            console.log(progress);
+        });
+
+        statusBarItem.text = "$(zap) Predic: Ready";
+        console.log("Offline model is ready.");
+
+    } catch (error: any) {
+        statusBarItem.text = "$(error) Predic: Model Failed";
+        console.error("Failed to initialize the Predic model:", error);
+        vscode.window.showErrorMessage(`Predic failed to load the AI model: ${error.message}`);
+        return;
+    }
 
     const provider: vscode.InlineCompletionItemProvider = {
-        
-        async provideInlineCompletionItems(document: vscode.TextDocument, position: vscode.Position, context: vscode.InlineCompletionContext, token: vscode.CancellationToken): Promise<vscode.InlineCompletionItem[] | undefined> {
-            
-            // Input #1: The content on the current line before the cursor
-            const line = document.lineAt(position.line);
-            const textBeforeCursorOnLine = line.text.substring(0, position.character);
+        async provideInlineCompletionItems(document, position, context, token) {
+            const textBeforeCursor = document.getText(new vscode.Range(new vscode.Position(0, 0), position));
 
-            // Input #2: The entire file content from the start up to the cursor
-            const rangeBeforeCursor = new vscode.Range(new vscode.Position(0, 0), position);
-            const textBeforeCursorInFile = document.getText(rangeBeforeCursor);
+            if (textBeforeCursor.trim().length < 10) return;
 
-            // Input #3: The currently selected text by the user
-            const editor = vscode.window.activeTextEditor;
-            let selectedText = '';
-            if (editor && !editor.selection.isEmpty) {
-                // Get text from the active editor's selection
-                selectedText = document.getText(editor.selection);
-            }
-
-            // For debugging: 
-            // console.log("--- Predic Context ---");
-            // console.log("1. Line Before Cursor:", textBeforeCursorOnLine);
-            // console.log("2. File Before Cursor:", textBeforeCursorInFile);
-            // console.log("3. Selected Text:", selectedText);
-            // console.log("----------------------");
-
-
-            // --- 2. GET SUGGESTION FROM YOUR MODEL (Placeholder Logic) ---
-            
-            // The logic here is just for demonstration.
-            let suggestion = '';
-
-            // Example: If user has selected text, suggest wrapping it in a div
-            if (selectedText) {
-                suggestion = `<div>\n\t${selectedText}\n</div>`;
-                
+            try {
+                const suggestion = await runGemma(completionPipeline, textBeforeCursor);
+                if (token.isCancellationRequested || !suggestion) return;
                 return [new vscode.InlineCompletionItem(suggestion)];
+            } catch (error: any) {
+                console.error("Error during offline inference:", error);
+                return;
             }
-            
-            // Fallback to the previous logic if nothing is selected
-            if (textBeforeCursorOnLine.trim().endsWith('const name =')) {
-                suggestion = ' "Predic";';
-            } else if (textBeforeCursorOnLine.trim().endsWith('<div>')) {
-                suggestion = '<h1>Hello from Predic!</h1></div>';
-            } else if (textBeforeCursorOnLine.trim().endsWith('className="')) {
-                suggestion = 'flex items-center justify-center">';
-            } else {
-                return; // No suggestion
-            }
-            
-            return [new vscode.InlineCompletionItem(suggestion)];
         },
     };
 
-    // Register the provider for all languages
     vscode.languages.registerInlineCompletionItemProvider({ pattern: '**' }, provider);
 }
 
