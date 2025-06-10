@@ -1,71 +1,66 @@
 import * as vscode from 'vscode';
-import * as cp from 'child_process';
-import * as path from 'path';
 
-const CFG_NS = 'predic';
-function cfg<T>(k: string, d: T): T {
-  return vscode.workspace.getConfiguration(CFG_NS).get<T>(k, d);
+export function activate(context: vscode.ExtensionContext) {
+
+    // console.log('Congratulations, your extension "Predic" is active with multi-context capabilities!');
+
+    const provider: vscode.InlineCompletionItemProvider = {
+        
+        async provideInlineCompletionItems(document: vscode.TextDocument, position: vscode.Position, context: vscode.InlineCompletionContext, token: vscode.CancellationToken): Promise<vscode.InlineCompletionItem[] | undefined> {
+            
+            // Input #1: The content on the current line before the cursor
+            const line = document.lineAt(position.line);
+            const textBeforeCursorOnLine = line.text.substring(0, position.character);
+
+            // Input #2: The entire file content from the start up to the cursor
+            const rangeBeforeCursor = new vscode.Range(new vscode.Position(0, 0), position);
+            const textBeforeCursorInFile = document.getText(rangeBeforeCursor);
+
+            // Input #3: The currently selected text by the user
+            const editor = vscode.window.activeTextEditor;
+            let selectedText = '';
+            if (editor && !editor.selection.isEmpty) {
+                // Get text from the active editor's selection
+                selectedText = document.getText(editor.selection);
+            }
+
+            // For debugging: 
+            // console.log("--- Predic Context ---");
+            // console.log("1. Line Before Cursor:", textBeforeCursorOnLine);
+            // console.log("2. File Before Cursor:", textBeforeCursorInFile);
+            // console.log("3. Selected Text:", selectedText);
+            // console.log("----------------------");
+
+
+            // --- 2. GET SUGGESTION FROM YOUR MODEL (Placeholder Logic) ---
+            
+            // The logic here is just for demonstration.
+            let suggestion = '';
+
+            // Example: If user has selected text, suggest wrapping it in a div
+            if (selectedText) {
+                suggestion = `<div>\n\t${selectedText}\n</div>`;
+                
+                return [new vscode.InlineCompletionItem(suggestion)];
+            }
+            
+            // Fallback to the previous logic if nothing is selected
+            if (textBeforeCursorOnLine.trim().endsWith('const name =')) {
+                suggestion = ' "Predic";';
+            } else if (textBeforeCursorOnLine.trim().endsWith('<div>')) {
+                suggestion = '<h1>Hello from Predic!</h1></div>';
+            } else if (textBeforeCursorOnLine.trim().endsWith('className="')) {
+                suggestion = 'flex items-center justify-center">';
+            } else {
+                return; // No suggestion
+            }
+            
+            return [new vscode.InlineCompletionItem(suggestion)];
+        },
+    };
+
+    // Register the provider for all languages
+    vscode.languages.registerInlineCompletionItemProvider({ pattern: '**' }, provider);
 }
 
-class Bridge {
-  constructor(private root: string) {}
-  run(prompt: string): Promise<string> {
-    return new Promise((res, rej) => {
-      const py = cfg<string>('pythonPath', 'python3');
-      const script = path.join(this.root, 'python', 'predic.py');
-      const timeout = cfg<number>('inferenceTimeoutMs', 2500);
-      cp.execFile(py, [script, prompt], { timeout }, (e, out, err) => {
-        if (e) {return rej(err || e.message);}
-        {res(out.trim());}
-      });
-    });
-  }
-}
-
-class Provider implements vscode.InlineCompletionItemProvider {
-  constructor(private bridge: Bridge, private sb: vscode.StatusBarItem) {}
-  async provideInlineCompletionItems(
-    doc: vscode.TextDocument,
-    pos: vscode.Position,
-    _c: vscode.InlineCompletionContext,
-    token: vscode.CancellationToken
-  ) {
-    if (!cfg<boolean>('enabled', true) || token.isCancellationRequested) {return;}
-    const full = doc.getText(new vscode.Range(0, 0, pos.line, pos.character));
-    if (!full.trim()) {return;}
-    try {
-      this.sb.text = 'Predic $(sync~spin)';
-      const out = await this.bridge.run(full);
-      this.sb.text = 'Predic';
-      if (!out) {return;}
-      return [new vscode.InlineCompletionItem(out, new vscode.Range(pos, pos))];
-    } catch {
-      this.sb.text = 'Predic ⚠️';
-    }
-  }
-}
-
-export function activate(ctx: vscode.ExtensionContext) {
-  const sb = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Right, 100);
-  sb.text = 'Predic';
-  sb.show();
-  ctx.subscriptions.push(sb);
-  ctx.subscriptions.push(
-    vscode.commands.registerCommand('predic.toggle', async () => {
-      const cur = cfg<boolean>('enabled', true);
-      await vscode.workspace.getConfiguration(CFG_NS).update('enabled', !cur, vscode.ConfigurationTarget.Global);
-      vscode.window.showInformationMessage(`Predic ${!cur ? 'enabled' : 'disabled'}.`);
-    })
-  );
-  const bridge = new Bridge(ctx.extensionPath);
-  const langs = [{ language: 'javascriptreact' }, { language: 'typescriptreact' }, { language: 'css' }];
-  ctx.subscriptions.push(vscode.languages.registerInlineCompletionItemProvider(langs, new Provider(bridge, sb)));
-
-  console.log('Predic extension is now active!');
-  // Status bar, commands etc.
-}
-
-export function deactivate() {
-  console.log('Predic extension is now deactivated!');
-}
-
+export function deactivate() {}
