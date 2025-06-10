@@ -49,6 +49,7 @@
   },
   "private": true,
   "dependencies": {
+    "@huggingface/transformers": "^3.5.2",
     "onnxruntime-node": "^1.22.0-rev"
   }
 }
