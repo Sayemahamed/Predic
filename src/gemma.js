@@ -10,7 +10,7 @@ const generator = await pipeline(
 // Define the list of messages
 const messages = [
   { role: "system", content: "You are a helpful assistant." },
-  { role: "user", content: "Write me a poem about Machine Learning." },
+  { role: "user", content: "Write a simple react button" },
 ];
 
 // Generate a response
