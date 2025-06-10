@@ -1,26 +1,66 @@
-// The module 'vscode' contains the VS Code extensibility API
-// Import the module and reference it with the alias vscode in your code below
 import * as vscode from 'vscode';
 
-// This method is called when your extension is activated
-// Your extension is activated the very first time the command is executed
 export function activate(context: vscode.ExtensionContext) {
 
-	// Use the console to output diagnostic information (console.log) and errors (console.error)
-	// This line of code will only be executed once when your extension is activated
-	console.log('Congratulations, your extension "predic" is now active!');
+    // console.log('Congratulations, your extension "Predic" is active with multi-context capabilities!');
 
-	// The command has been defined in the package.json file
-	// Now provide the implementation of the command with registerCommand
-	// The commandId parameter must match the command field in package.json
-	const disposable = vscode.commands.registerCommand('predic.helloWorld', () => {
-		// The code you place here will be executed every time your command is executed
-		// Display a message box to the user
-		vscode.window.showInformationMessage('Hello World from Predic!');
-	});
+    const provider: vscode.InlineCompletionItemProvider = {
+        
+        async provideInlineCompletionItems(document: vscode.TextDocument, position: vscode.Position, context: vscode.InlineCompletionContext, token: vscode.CancellationToken): Promise<vscode.InlineCompletionItem[] | undefined> {
+            
+            // Input #1: The content on the current line before the cursor
+            const line = document.lineAt(position.line);
+            const textBeforeCursorOnLine = line.text.substring(0, position.character);
 
-	context.subscriptions.push(disposable);
+            // Input #2: The entire file content from the start up to the cursor
+            const rangeBeforeCursor = new vscode.Range(new vscode.Position(0, 0), position);
+            const textBeforeCursorInFile = document.getText(rangeBeforeCursor);
+
+            // Input #3: The currently selected text by the user
+            const editor = vscode.window.activeTextEditor;
+            let selectedText = '';
+            if (editor && !editor.selection.isEmpty) {
+                // Get text from the active editor's selection
+                selectedText = document.getText(editor.selection);
+            }
+
+            // For debugging: 
+            // console.log("--- Predic Context ---");
+            // console.log("1. Line Before Cursor:", textBeforeCursorOnLine);
+            // console.log("2. File Before Cursor:", textBeforeCursorInFile);
+            // console.log("3. Selected Text:", selectedText);
+            // console.log("----------------------");
+
+
+            // --- 2. GET SUGGESTION FROM YOUR MODEL (Placeholder Logic) ---
+            
+            // The logic here is just for demonstration.
+            let suggestion = '';
+
+            // Example: If user has selected text, suggest wrapping it in a div
+            if (selectedText) {
+                suggestion = `<div>\n\t${selectedText}\n</div>`;
+                
+                return [new vscode.InlineCompletionItem(suggestion)];
+            }
+            
+            // Fallback to the previous logic if nothing is selected
+            if (textBeforeCursorOnLine.trim().endsWith('const name =')) {
+                suggestion = ' "Predic";';
+            } else if (textBeforeCursorOnLine.trim().endsWith('<div>')) {
+                suggestion = '<h1>Hello from Predic!</h1></div>';
+            } else if (textBeforeCursorOnLine.trim().endsWith('className="')) {
+                suggestion = 'flex items-center justify-center">';
+            } else {
+                return; // No suggestion
+            }
+            
+            return [new vscode.InlineCompletionItem(suggestion)];
+        },
+    };
+
+    // Register the provider for all languages
+    vscode.languages.registerInlineCompletionItemProvider({ pattern: '**' }, provider);
 }
 
-// This method is called when your extension is deactivated
 export function deactivate() {}
