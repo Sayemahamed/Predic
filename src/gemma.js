@@ -1,4 +1,5 @@
 const path = require('path');
+console.log(path);
 const fs = require('fs');
 
 let isInitialized = false;

@@ -70,9 +70,12 @@ export async function activate(context: vscode.ExtensionContext) {
     statusBarItem.show();
     context.subscriptions.push(statusBarItem);
 
-    // FIXED: Switched to the deprecated but more direct `globalStoragePath`
+    // Switched to the deprecated but more direct `globalStoragePath`
     // to prevent the 'undefined' path error. This is a common workaround for this issue.
     const storagePath = context.globalStoragePath;
+
+    // DEBUG: Log the path to see what VS Code is providing.
+    console.log(`[DEBUG] storagePath value: ${storagePath}, type: ${typeof storagePath}`);
 
     // Added a more explicit check to ensure the path is a valid, non-empty string.
     if (typeof storagePath !== 'string' || storagePath.length === 0) {
