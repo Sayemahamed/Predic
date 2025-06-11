@@ -14,22 +14,13 @@ let pipelineInstance: Promise<TextGenerationPipeline> | null = null;
  */
 async function getPipeline(cachePath: string, progress_callback?: Function): Promise<TextGenerationPipeline> {
     if (pipelineInstance === null) {
-        // Dynamically import the 'env' object from the library.
         const { env } = await import('@xenova/transformers');
-        
-        // Define the models directory within the provided cache path.
         const modelsDir = path.join(cachePath, 'models');
-        
-        // Ensure the directory exists before setting the cache path.
         if (!fs.existsSync(modelsDir)) {
             fs.mkdirSync(modelsDir, { recursive: true });
         }
-        
-        // Set the cache directory for transformers.js
         env.cacheDir = modelsDir;
         console.log(`Transformers.js cache path is set to: ${env.cacheDir}`);
-
-        // Create the pipeline promise. This will download the model on the first run.
         pipelineInstance = pipeline('text-generation', 'onnx-community/gemma-3-1b-it-ONNX-GQA', {
             progress_callback,
         });
@@ -47,15 +38,12 @@ async function runGemma(generator: TextGenerationPipeline, prompt: string): Prom
         { role: "system", content: "You are a helpful code completion assistant. Complete the user's code. Provide only the code completion, without any explanation or repeating the user's code." },
         { role: "user", content: prompt },
     ];
-
     const output = await generator(messages, {
         max_new_tokens: 64,
         do_sample: true,
         temperature: 0.7,
         top_p: 0.9,
     });
-
-    // Cast the output to 'any' to safely access 'generated_text'.
     const lastMessage = (output[0] as any).generated_text.at(-1);
     return lastMessage ? lastMessage.content.trim() : '';
 }
@@ -70,14 +58,10 @@ export async function activate(context: vscode.ExtensionContext) {
     statusBarItem.show();
     context.subscriptions.push(statusBarItem);
 
-    // Switched to the deprecated but more direct `globalStoragePath`
-    // to prevent the 'undefined' path error. This is a common workaround for this issue.
     const storagePath = context.globalStoragePath;
 
-    // DEBUG: Log the path to see what VS Code is providing.
     console.log(`[DEBUG] storagePath value: ${storagePath}, type: ${typeof storagePath}`);
 
-    // Added a more explicit check to ensure the path is a valid, non-empty string.
     if (typeof storagePath !== 'string' || storagePath.length === 0) {
         const errorMessage = "Could not determine the extension's storage path. Predic cannot start.";
         vscode.window.showErrorMessage(errorMessage);
@@ -93,10 +77,8 @@ export async function activate(context: vscode.ExtensionContext) {
         completionPipeline = await getPipeline(storagePath, (progress: any) => {
             console.log(progress);
         });
-
         statusBarItem.text = "$(zap) Predic: Ready";
         console.log("Offline model is ready.");
-
     } catch (error: any) {
         statusBarItem.text = "$(error) Predic: Model Failed";
         console.error("Failed to initialize the Predic model:", error);
@@ -104,20 +86,37 @@ export async function activate(context: vscode.ExtensionContext) {
         return;
     }
 
+    // --- Debouncing Logic for Performance ---
+    let debounceTimer: NodeJS.Timeout | undefined;
+
     const provider: vscode.InlineCompletionItemProvider = {
-        async provideInlineCompletionItems(document, position, context, token) {
-            const textBeforeCursor = document.getText(new vscode.Range(new vscode.Position(0, 0), position));
+        provideInlineCompletionItems: (document, position, context, token) => {
+            // Use a promise to handle the debounced result
+            return new Promise((resolve) => {
+                if (debounceTimer) {
+                    clearTimeout(debounceTimer);
+                }
 
-            if (textBeforeCursor.trim().length < 10) return;
+                debounceTimer = setTimeout(async () => {
+                    const textBeforeCursor = document.getText(new vscode.Range(new vscode.Position(0, 0), position));
+                    if (textBeforeCursor.trim().length < 10) {
+                        return resolve([]); // Resolve with no items if not enough text
+                    }
 
-            try {
-                const suggestion = await runGemma(completionPipeline, textBeforeCursor);
-                if (token.isCancellationRequested || !suggestion) return;
-                return [new vscode.InlineCompletionItem(suggestion)];
-            } catch (error: any) {
-                console.error("Error during offline inference:", error);
-                return;
-            }
+                    try {
+                        console.log("Requesting completion...");
+                        const suggestion = await runGemma(completionPipeline, textBeforeCursor);
+                        if (token.isCancellationRequested || !suggestion) {
+                            return resolve([]);
+                        }
+                        // Resolve with the completion item
+                        resolve([new vscode.InlineCompletionItem(suggestion)]);
+                    } catch (error: any) {
+                        console.error("Error during debounced inference:", error);
+                        resolve([]); // Resolve with no items on error
+                    }
+                }, 300); // Wait for 300ms of inactivity before triggering
+            });
         },
     };
 
