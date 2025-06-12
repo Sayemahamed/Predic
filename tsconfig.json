@@ -4,12 +4,12 @@
 		"moduleResolution": "NodeNext",
 		"target": "ES2022",
 		"lib": [
-			"ES2022"
+			"ES2022",
+			"DOM"
 		],
 		"outDir": "dist",
 		"sourceMap": true,
-		"strict": true,
-		"allowJs": true
+		"strict": true
 	},
 	"include": [
 		"src/**/*.ts"
