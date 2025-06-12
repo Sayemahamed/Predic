@@ -1,25 +1,26 @@
-const { build } = require('esbuild');
-const fs = require('fs-extra');
-const path = require('path');
+import { build } from 'esbuild';
+import fs from 'fs-extra';
+import path from 'path';
 
 const isWatchMode = process.argv.includes('--watch');
 const outDir = 'dist';
+const modelSrc = path.join('src', 'model');
+const modelDest = path.join(outDir, 'model');
 
-// Define the common build options for esbuild.
 const buildOptions = {
     entryPoints: ['src/extension.ts'],
     bundle: true,
     outfile: path.join(outDir, 'extension.js'),
     platform: 'node',
     target: 'node16',
+    // This is the critical fix. It tells the bundler not to package these
+    // native modules, which resolves the ".node" file error.
     external: ['vscode', 'onnxruntime-node', 'sharp'],
     sourcemap: true,
 };
 
 async function runBuild() {
     try {
-        // Conditionally add the 'watch' configuration if in watch mode.
-        // This prevents the "Invalid option" error when running a normal build.
         if (isWatchMode) {
             buildOptions.watch = {
                 onRebuild(error) {
@@ -27,16 +28,12 @@ async function runBuild() {
                     else console.log('Rebuild succeeded.');
                 },
             };
-            console.log('Running in watch mode...');
         }
-
-        // 1. Bundle the extension code using the configured options.
+        
         await build(buildOptions);
         console.log('Build finished successfully.');
 
-        // 2. Copy the model files to the output directory.
-        const modelSrc = path.join('src', 'model');
-        const modelDest = path.join(outDir, 'model');
+        // Copy the model files into the final package.
         if (fs.existsSync(modelSrc)) {
             fs.copySync(modelSrc, modelDest, { overwrite: true });
             console.log('Model files copied successfully.');
