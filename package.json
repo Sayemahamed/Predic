@@ -33,8 +33,8 @@
   "scripts": {
     "vscode:prepublish": "npm run package",
     "compile": "npm run check-types && npm run lint && node esbuild.js",
-    "build": "node ./build.js",
-    "watch": "node ./build.js --watch",
+    "build": "node ./build.mjs",
+    "watch": "node ./build.mjs --watch",
     "watch:build": "npm run watch",
     "watch:esbuild": "node esbuild.js --watch",
     "watch:tsc": "tsc --noEmit --watch --project tsconfig.json",
