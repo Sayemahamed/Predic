@@ -42,6 +42,20 @@ async function main() {
 			esbuildProblemMatcherPlugin,
 		],
 	});
+	const fs = require('fs');
+	const path = require('path');
+
+	const srcModelPath = path.resolve(__dirname, 'src', 'model');
+	const distModelPath = path.resolve(__dirname, 'dist', 'model');
+
+	fs.mkdirSync(distModelPath, { recursive: true });
+
+	fs.readdirSync(srcModelPath).forEach(file => {
+		const srcFile = path.join(srcModelPath, file);
+		const destFile = path.join(distModelPath, file);
+		fs.copyFileSync(srcFile, destFile);
+	});
+	console.log('[build] Model folder copied to dist/model');
 	if (watch) {
 		await ctx.watch();
 	} else {
