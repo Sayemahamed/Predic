@@ -34,7 +34,6 @@ export async function activate(context: vscode.ExtensionContext) {
         // step5
         console.log("[Step 5] Dynamically importing '@xenova/transformers'...");
         const { env, pipeline } = await import('@xenova/transformers'); 
-        
         // <--- error here the extension stops while compiling this line above
 
         console.log("[Step 5] Library imported successfully.");
