@@ -1,6 +1,8 @@
 node_modules/
 .vscode/
 dist/
+.venv/
+uv.lock
 
 # Dependencies
 package-lock.json
