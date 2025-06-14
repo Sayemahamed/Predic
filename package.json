@@ -23,12 +23,16 @@
   ],
   "main": "./dist/extension.js",
   "contributes": {
-    "commands": [
-      {
-        "command": "predic.toggle",
-        "title": "Toggle Predic"
+    "configuration": {
+      "title": "Predic",
+      "properties": {
+        "predic.pythonPath": {
+          "type": "string",
+          "default": "",
+          "description": "The absolute path to the Python executable (e.g., from your virtual environment). If empty, the extension will try to use the Python command in the system's PATH."
+        }
       }
-    ]
+    }
   },
   "scripts": {
     "vscode:prepublish": "npm run package",

@@ -1,103 +1,136 @@
 import * as vscode from 'vscode';
 import * as path from 'path';
 import * as fs from 'fs';
+import * as os from 'os'; // Import the 'os' module to get the home directory
 
-export async function activate(context: vscode.ExtensionContext) {
-    
-    const statusBarItem = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Left);
-    context.subscriptions.push(statusBarItem);
-    statusBarItem.text = "$(loading~spin) Predic: Starting...";
-    statusBarItem.show();
+// --- Type Definitions (Unchanged) ---
+interface TextGenerationOutput {
+    generated_text: string;
+}
+type TextGenerationPipeline = (
+    input: string | { role: string; content: string }[],
+    options: any
+) => Promise<TextGenerationOutput | TextGenerationOutput[]>;
 
-    try {
-        console.log("--- Predic Activation Start ---");
-        // step1
-        const storageUri = context.globalStorageUri;
-        console.log(`[Step 1] VS Code provided storageUri:`, storageUri);
-        // step2
-        const storagePath = storageUri.fsPath;
-        console.log(`[Step 2] Converted to fsPath: ${storagePath}, type: ${typeof storagePath}`);
+let predicPipeline: Promise<TextGenerationPipeline | null> | null = null;
 
-        if (!storagePath || typeof storagePath !== 'string') {
-            throw new Error("Could not determine a valid storage path from VS Code's context.");
-        }
-        // step3
-        if (!fs.existsSync(storagePath)) {
-            console.log(`[Step 3] Storage path does not exist. Creating directory...`);
-            fs.mkdirSync(storagePath, { recursive: true });
-        } else {
-            console.log(`[Step 3] Storage path already exists.`);
-        }
-        // step4
-        process.env.TRANSFORMERS_CACHE = storagePath;
-        console.log(`[Step 4] Set process.env.TRANSFORMERS_CACHE to: ${storagePath}`);
-        // step5
-        console.log("[Step 5] Dynamically importing '@xenova/transformers'...");
-        const { env, pipeline } = await import('@xenova/transformers'); 
-        // <--- error here the extension stops while compiling this line above
+export function activate(context: vscode.ExtensionContext) {
+    initializePredic(context);
 
-        console.log("[Step 5] Library imported successfully.");
-        // step6
-        env.cacheDir = storagePath;
-        console.log(`[Step 6] Also explicitly set library env.cacheDir to: ${storagePath}`);
+    const provider: vscode.InlineCompletionItemProvider = {
+        async provideInlineCompletionItems(document, position, context, token) {
+            const pipeline = await predicPipeline;
+            if (!pipeline || token.isCancellationRequested) return [];
+            
+            const textBeforeCursor = document.getText(new vscode.Range(new vscode.Position(0, 0), position));
+            const contextWindow = textBeforeCursor.slice(-2048);
+            if (contextWindow.trim().length === 0) return [];
 
-        statusBarItem.text = "$(sync~spin) Predic: Loading model...";
-        // step7
-        const modelPath = path.join(context.extensionPath, 'dist', 'model');
-        console.log(`[Step 7] Attempting to load model from: ${modelPath}`);
-        
-        env.allowRemoteModels = false;
+            try {
+                const suggestion = await getCompletion(pipeline, contextWindow);
+                if (!suggestion) return [];
+                return [new vscode.InlineCompletionItem(suggestion)];
+            } catch (error: any) {
+                console.error("Error during inference:", error);
+                return [];
+            }
+        },
+    };
 
-        const completionPipeline: any = await pipeline('text-generation', modelPath);
-        // step8
-        statusBarItem.text = "$(zap) Predic: Ready";
-        console.log("[Step 8] Model pipeline loaded successfully. Predic is ready.");
-
-        async function runGemma(prompt: string): Promise<string> {
-            const messages = [
-                { role: "system", content: "You are a helpful code completion assistant for React and Tailwind. Complete the user's code." },
-                { role: "user", content: prompt },
-            ];
-            const output = await completionPipeline(messages, {
-                max_new_tokens: 64,
-                do_sample: true,
-                temperature: 0.7,
-                top_p: 0.9,
-            });
-            const lastMessage = (output[0] as any).generated_text.at(-1);
-            return lastMessage ? lastMessage.content.trim() : '';
-        }
-
-        let debounceTimer: NodeJS.Timeout | undefined;
-        const provider: vscode.InlineCompletionItemProvider = {
-            provideInlineCompletionItems: (document, position, context, token) => {
-                return new Promise((resolve) => {
-                    if (debounceTimer) clearTimeout(debounceTimer);
-                    debounceTimer = setTimeout(async () => {
-                        const textBeforeCursor = document.getText(new vscode.Range(new vscode.Position(0, 0), position));
-                        
-                        try {
-                            console.log(`--- Sending prompt to AI ---\n${textBeforeCursor}`);
-                            const suggestion = await runGemma(textBeforeCursor);
-                            console.log(`--- Received suggestion: "${suggestion}" ---`);
-                            if (token.isCancellationRequested || !suggestion) return resolve([]);
-                            resolve([new vscode.InlineCompletionItem(suggestion)]);
-                        } catch (error: any) {
-                            console.error("Error during inference:", error);
-                            resolve([]);
-                        }
-                    }, 300);
-                });
-            },
-        };
-
-        vscode.languages.registerInlineCompletionItemProvider({ pattern: '**' }, provider);
-
-    } catch (error: any) {
-        statusBarItem.text = "$(error) Predic: Failed";
-        console.error("--- PREDIC ACTIVATION FAILED ---", error);
-        vscode.window.showErrorMessage(`Predic failed to start. Please check the debug console. Error: ${error.message}`);
-    }
+    vscode.languages.registerInlineCompletionItemProvider({ pattern: '**' }, provider);
 }
 
-export function deactivate() {}
+function initializePredic(context: vscode.ExtensionContext) {
+    predicPipeline = new Promise((resolve) => {
+        // We don't need withProgress here because the agent pattern
+        // implies this happens quickly or in the background.
+        // For simplicity, we'll still do it in one flow but with better path handling.
+        
+        (async () => {
+            try {
+                console.log("[Predic] Starting initialization...");
+
+                // TABBYML-INSPIRED FIX: Use a reliable path instead of globalStorageUri.
+                // We will create a .predic folder in the user's home directory.
+                const homeDir = os.homedir();
+                if (!homeDir) {
+                    throw new Error("Could not determine user's home directory.");
+                }
+                const storagePath = path.join(homeDir, '.predic', 'cache');
+                console.log(`[Predic] Using reliable storage path: ${storagePath}`);
+
+                // Create the directory if it doesn't exist.
+                if (!fs.existsSync(storagePath)) {
+                    fs.mkdirSync(storagePath, { recursive: true });
+                }
+                
+                // Set the cache directory BEFORE importing transformers
+                process.env.TRANSFORMERS_CACHE = storagePath;
+
+                const { env, pipeline } = await import('@xenova/transformers');
+                
+                // Redundantly set it for the library's environment
+                env.cacheDir = storagePath;
+                env.allowRemoteModels = false;
+
+                const modelPath = path.join(context.extensionPath, 'dist', 'model');
+                if (!fs.existsSync(modelPath)) {
+                    throw new Error(`Model directory not found at path: ${modelPath}. Make sure the model is copied to 'dist/model' during the build process.`);
+                }
+                
+                console.log("[Predic] Loading model pipeline...");
+                const loadedPipeline = await pipeline('text-generation', modelPath) as TextGenerationPipeline;
+
+                const statusBarItem = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Left);
+                statusBarItem.text = "$(zap) Predic: Ready";
+                statusBarItem.show();
+                context.subscriptions.push(statusBarItem);
+                
+                console.log("[Predic] Initialization successful.");
+                resolve(loadedPipeline);
+
+            } catch (error: any) {
+                console.error("--- PREDIC ACTIVATION FAILED ---", error);
+                vscode.window.showErrorMessage(`Predic failed to start. Error: ${error.message}`);
+                resolve(null);
+            }
+        })();
+    });
+}
+
+
+// --- getCompletion and deactivate functions (Unchanged) ---
+async function getCompletion(pipeline: TextGenerationPipeline, prompt: string): Promise<string> {
+    const messages = [
+        { role: "system", content: "You are a helpful code completion assistant for React and Tailwind. Complete the user's code snippet." },
+        { role: "user", content: prompt },
+    ];
+    
+    const output = await pipeline(messages, {
+        max_new_tokens: 64,
+        do_sample: true,
+        temperature: 0.7,
+        top_p: 0.9,
+    });
+
+    let generatedText: string | undefined;
+    if (Array.isArray(output)) {
+        generatedText = output[0]?.generated_text;
+    } else {
+        generatedText = output.generated_text;
+    }
+
+    if (!generatedText) return '';
+
+    const assistantMarker = "<|assistant|>";
+    const suggestionStartIndex = generatedText.lastIndexOf(assistantMarker);
+    const suggestion = suggestionStartIndex !== -1 
+        ? generatedText.substring(suggestionStartIndex + assistantMarker.length).trim()
+        : '';
+    
+    return suggestion;
+}
+
+export function deactivate() {
+    predicPipeline = null;
+}
