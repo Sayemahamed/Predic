@@ -15,64 +15,31 @@
     "Other"
   ],
   "activationEvents": [
-    "onLanguage:javascriptreact",
-    "onLanguage:typescriptreact",
-    "onLanguage:javascript",
-    "onLanguage:typescript",
-    "onLanguage:css"
+    "onStartupFinished"
   ],
   "main": "./dist/extension.js",
-  "contributes": {
-    "configuration": {
-      "title": "Predic",
-      "properties": {
-        "predic.pythonPath": {
-          "type": "string",
-          "default": "",
-          "description": "The absolute path to the Python executable (e.g., from your virtual environment). If empty, the extension will try to use the Python command in the system's PATH."
-        }
-      }
-    }
-  },
   "scripts": {
-    "vscode:prepublish": "npm run package",
-    "build": "node ./build.mjs",
-    "compile": "webpack --mode production",
-    "watch": "webpack --watch --mode development",
-    "watch:build": "npm run watch",
-    "watch:esbuild": "node esbuild.js --watch",
-    "watch:tsc": "tsc --noEmit --watch --project tsconfig.json",
-    "package": "npm run check-types && npm run lint && node esbuild.js --production",
-    "compile-tests": "tsc -p . --outDir out",
-    "watch-tests": "tsc -p . -w --outDir out",
-    "pretest": "npm run compile-tests && npm run compile && npm run lint",
-    "check-types": "tsc --noEmit",
-    "lint": "eslint src",
-    "test": "vscode-test"
+    "vscode:prepublish": "npm run build",
+    "build": "npm run clean && webpack --mode production",
+    "build:dev": "npm run clean && webpack --mode development",
+    "watch": "npm run clean && webpack --watch --mode development --stats minimal",
+    "clean": "rimraf dist",
+    "lint": "eslint src --ext ts",
+    "compile": "tsc -p ./"
   },
   "devDependencies": {
-    "@types/bun": "latest",
-    "@types/mocha": "^10.0.10",
     "@types/node": "20.x",
     "@types/vscode": "^1.100.0",
     "@typescript-eslint/eslint-plugin": "^8.31.1",
     "@typescript-eslint/parser": "^8.31.1",
-    "@vscode/test-cli": "^0.0.10",
-    "@vscode/test-electron": "^2.5.2",
-    "esbuild": "^0.25.3",
     "eslint": "^9.25.1",
-    "fs-extra": "^11.3.0",
-    "npm-run-all": "^4.1.5",
+    "rimraf": "^5.0.5",
     "ts-loader": "^9.5.2",
     "typescript": "^5.8.3",
     "webpack": "^5.99.9",
     "webpack-cli": "^6.0.1"
   },
-  "private": true,
   "dependencies": {
-    "@huggingface/transformers": "^3.5.2",
-    "@xenova/transformers": "^2.17.1",
-    "onnxruntime-node": "^1.22.0-rev",
-    "sharp": "^0.33.4"
+    "@xenova/transformers": "^2.17.1"
   }
 }
