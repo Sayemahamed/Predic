@@ -133,6 +133,8 @@ class PredicAgent {
       return this.sendMessage({ type: 'completionResult', data: { suggestion: '', requestId } });
     }
 
+    console.log(`[Agent] Received prompt: "${prompt}"`);
+
     const suggestion = await this.generateCompletion(prompt);
     this.sendMessage({ type: 'completionResult', data: { suggestion, requestId } });
   }
@@ -150,6 +152,8 @@ class PredicAgent {
       max_time: 5.0,
     });
 
+    console.log(`[Agent] Raw model output: ${JSON.stringify(output)}`);
+
     return this.extractSuggestion(output, codePrompt);
   }
 
@@ -158,12 +162,21 @@ class PredicAgent {
   }
 
   private extractSuggestion(output: TextGenerationOutput[], originalPrompt: string): string {
-    if (!output?.length) return '';
-    let generated = output[0].generated_text;
-    if (generated.startsWith(originalPrompt)) {
-      generated = generated.slice(originalPrompt.length);
+    if (!output?.length || !output[0].generated_text) {
+        return '';
     }
-    return generated.trim().split('\n')[0]?.trim().slice(0, 80) || '';
+
+    let generatedText = output[0].generated_text;
+
+    // The model includes the prompt in its output. We find the last instance
+    // of the prompt and take the text that comes after it.
+    const promptIndex = generatedText.lastIndexOf(originalPrompt);
+    let suggestion = (promptIndex === -1) 
+        ? generatedText 
+        : generatedText.slice(promptIndex + originalPrompt.length);
+    
+    // Clean up the suggestion by taking the first line and removing whitespace.
+    return suggestion.trim().split('\n')[0]?.trim().slice(0, 80) || '';
   }
 
   private sendMessage(message: AgentMessage): void {
