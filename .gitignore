@@ -1,5 +1,6 @@
 node_modules/
 dist/
+uv.lock
 
 # Dependencies
 package-lock.json
