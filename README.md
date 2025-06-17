@@ -1,71 +1,72 @@
-# predic README
+# 🔮 Predic: Offline & Private AI Code Completion
 
-This is the README for your extension "predic". After writing up a brief description, we recommend including the following sections.
+[![VS Code Marketplace](https://img.shields.io/visual-studio-marketplace/v/your-publisher.predic?style=for-the-badge&label=Marketplace&color=blue)](https://marketplace.visualstudio.com/items?itemName=your-publisher.predic)
+[![Installs](https://img.shields.io/visual-studio-marketplace/i/your-publisher.predic?style=for-the-badge&color=green)](https://marketplace.visualstudio.com/items?itemName=your-publisher.predic)
+[![Rating](https://img.shields.io/visual-studio-marketplace/r/your-publisher.predic?style=for-the-badge&color=yellow)](https://marketplace.visualstudio.com/items?itemName=your-publisher.predic)
 
-## Features
-
-Describe specific features of your extension including screenshots of your extension in action. Image paths are relative to this README file.
-
-For example if there is an image subfolder under your extension project workspace:
-
-\!\[feature X\]\(images/feature-x.png\)
-
-> Tip: Many popular extensions utilize animations. This is an excellent way to show off your extension! We recommend short, focused animations that are easy to follow.
-
-## Requirements
-
-If you have any requirements or dependencies, add a section describing those and how to install and configure them.
-
-## Extension Settings
-
-Include if your extension adds any VS Code settings through the `contributes.configuration` extension point.
-
-For example:
-
-This extension contributes the following settings:
-
-* `myExtension.enable`: Enable/disable this extension.
-* `myExtension.thing`: Set to `blah` to do something.
-
-## Known Issues
-
-Calling out known issues can help limit users opening duplicate issues against your extension.
-
-## Release Notes
-
-Users appreciate release notes as you update your extension.
-
-### 1.0.0
-
-Initial release of ...
-
-### 1.0.1
-
-Fixed issue #.
-
-### 1.1.0
-
-Added features X, Y, and Z.
+**Predic** is your personal AI pair programmer that runs entirely on your local machine. Get helpful code completions without ever sending your code to the cloud. It's fast, private, and works completely offline.
 
 ---
 
-## Following extension guidelines
+![Predic Demo GIF](https://raw.githubusercontent.com/Sayemahamed/Predic/main/images/predic-demo.gif)
+> *(**Pro-tip:** Create a cool animated GIF showing Predic in action and replace the link above!)*
 
-Ensure that you've read through the extensions guidelines and follow the best practices for creating your extension.
+## ✨ Core Features
 
-* [Extension Guidelines](https://code.visualstudio.com/api/references/extension-guidelines)
+* **100% Offline:** After a one-time model download, Predic works without an internet connection.
+* **Completely Private:** Your code never leaves your computer. Period. We value your privacy and intellectual property.
+* **Instant Completions:** Uses a lightweight, quantized AI model that runs efficiently on your local hardware.
+* **Multi-Language Support:** Get smart completions for modern web development.
+    * JavaScript & TypeScript
+    * React (.jsx & .tsx)
+    * CSS
+* **Easy to Use:** Simply install from the marketplace and start coding. No complex setup or API keys required.
 
-## Working with Markdown
+## 🚀 Getting Started
 
-You can author your README using Visual Studio Code. Here are some useful editor keyboard shortcuts:
+1.  Install the extension from the [VS Code Marketplace](https://marketplace.visualstudio.com/items?itemName=your-publisher.predic).
+2.  The first time it runs, Predic will download the AI model (approx. 150-200MB). You can see the progress in the status bar.
+3.  Once the status bar shows **`$(zap) Predic: Ready`**, you're all set! Open a supported file and start coding to see suggestions.
 
-* Split the editor (`Cmd+\` on macOS or `Ctrl+\` on Windows and Linux).
-* Toggle preview (`Shift+Cmd+V` on macOS or `Shift+Ctrl+V` on Windows and Linux).
-* Press `Ctrl+Space` (Windows, Linux, macOS) to see a list of Markdown snippets.
+## 🛠️ How It Works
 
-## For more information
+Predic uses a modern, two-process architecture to ensure the VS Code UI remains fast and responsive.
 
-* [Visual Studio Code's Markdown Support](http://code.visualstudio.com/docs/languages/markdown)
-* [Markdown Syntax Reference](https://help.github.com/articles/markdown-basics/)
+1.  **Extension Host:** The main extension (`extension.ts`) interacts with the VS Code API, captures your code context, and displays suggestions.
+2.  **Agent Process:** A separate Node.js process (`agent.ts`) is forked to handle the heavy lifting. This agent loads a quantized AI model using the amazing [Transformers.js](https://github.com/xenova/transformers.js) library and runs inference without blocking the main editor thread.
 
-**Enjoy!**
+This design ensures that even during intense AI computations, your typing and editing experience remains silky smooth.
+
+## 🔧 Contributing & Local Development
+
+We welcome contributions! Whether it's a bug report, a feature request, or a pull request, we'd love your help.
+
+To get started with local development:
+
+1.  **Prerequisites:** Make sure you have [Node.js](https://nodejs.org/) installed.
+2.  **Clone the Repository:**
+    ```bash
+    git clone [https://github.com/Sayemahamed/Predic.git](https://github.com/Sayemahamed/Predic.git)
+    cd Predic
+    ```
+3.  **Install Dependencies:**
+    ```bash
+    npm install
+    ```
+4.  **Start the Development Build:**
+    ```bash
+    npm run watch
+    ```
+5.  **Run the Extension:**
+    * Press `F5` in VS Code to open a new Extension Development Host window.
+    * This window will have the Predic extension loaded and ready to debug.
+    * Logs and debugging output will appear in the **Debug Console** of your main VS Code window.
+
+## 📄 License
+
+This project is licensed under the MIT License. See the `LICENSE` file for details.
+
+## 🙏 Acknowledgements
+
+* A huge thank you to the team behind [Xenova/Transformers.js](https://github.com/xenova/transformers.js) for making local, in-browser, and in-app AI accessible to everyone.
+
