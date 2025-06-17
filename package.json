@@ -18,6 +18,14 @@
     "onStartupFinished"
   ],
   "main": "./dist/extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "predic.restart",
+        "title": "Restart Predic Agent"
+      }
+    ]
+  },
   "scripts": {
     "vscode:prepublish": "npm run build",
     "build": "npm run clean && webpack --mode production",
@@ -25,7 +33,8 @@
     "watch": "npm run clean && webpack --watch --mode development --stats minimal",
     "clean": "rimraf dist",
     "lint": "eslint src --ext ts",
-    "compile": "tsc -p ./"
+    "compile": "tsc -p ./",
+    "test": "npm run build && node ./out/test/runTest.js"
   },
   "devDependencies": {
     "@types/node": "20.x",

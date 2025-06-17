@@ -1,8 +1,6 @@
 import * as path from 'path';
 import * as fs from 'fs';
 import * as os from 'os';
-
-// Import transformers directly - it will be externalized by webpack
 import { pipeline, env } from '@xenova/transformers';
 
 interface TextGenerationOutput {
@@ -10,9 +8,9 @@ interface TextGenerationOutput {
 }
 
 type TextGenerationPipeline = (
-  input: string | { role: string; content: string }[],
+  input: string,
   options?: any
-) => Promise<TextGenerationOutput | TextGenerationOutput[]>;
+) => Promise<TextGenerationOutput[]>;
 
 type AgentMessage =
   | { type: 'ready' }
@@ -25,7 +23,8 @@ type ExtensionMessage =
 
 class PredicAgent {
   private completionPipeline: TextGenerationPipeline | null = null;
-  private isInitialized: boolean = false;
+  private isInitialized = false;
+  private isInitializing = false;
 
   constructor() {
     this.setupProcessHandlers();
@@ -36,27 +35,24 @@ class PredicAgent {
       try {
         await this.handleMessage(message);
       } catch (error) {
-        console.error('Error handling message:', error);
         this.sendMessage({
           type: 'error',
-          data: { message: `Failed to handle message: ${error}` }
+          data: { message: `Failed to handle message: ${error instanceof Error ? error.message : String(error)}` },
         });
       }
     });
 
     process.on('uncaughtException', (error) => {
-      console.error('Uncaught exception in agent:', error);
       this.sendMessage({
         type: 'error',
-        data: { message: `Uncaught exception: ${error.message}` }
+        data: { message: `Uncaught exception: ${error.message}` },
       });
     });
 
-    process.on('unhandledRejection', (reason, promise) => {
-      console.error('Unhandled rejection in agent:', reason);
+    process.on('unhandledRejection', (reason) => {
       this.sendMessage({
         type: 'error',
-        data: { message: `Unhandled rejection: ${reason}` }
+        data: { message: `Unhandled rejection: ${reason instanceof Error ? reason.message : String(reason)}` },
       });
     });
   }
@@ -69,158 +65,105 @@ class PredicAgent {
       case 'getCompletion':
         await this.handleCompletionRequest(message.data.prompt, message.data.requestId);
         break;
-      default:
-        console.warn('Unknown message type:', (message as any).type);
     }
   }
 
   private async initializeModel(modelDir: string): Promise<void> {
-    try {
-      console.log('Initializing Predic agent...');
+    if (this.isInitializing || this.isInitialized) return;
+    this.isInitializing = true;
 
-      // Setup cache directory
+    try {
       const cachePath = path.join(os.homedir(), '.predic', 'cache');
       if (!fs.existsSync(cachePath)) {
         fs.mkdirSync(cachePath, { recursive: true });
       }
 
-      // Configure transformers environment
-      process.env.TRANSFORMERS_CACHE = cachePath;
       env.cacheDir = cachePath;
-      env.allowRemoteModels = true; // Allow downloading if model not found locally
+      env.allowRemoteModels = true;
+      env.allowLocalModels = true;
+      env.backends.onnx.logLevel = 'error';
 
-      // Try to load model
       await this.loadModel(modelDir);
-
       this.isInitialized = true;
       this.sendMessage({ type: 'ready' });
-      console.log('Predic agent initialized successfully');
-
     } catch (error) {
-      console.error('Failed to initialize model:', error);
       this.sendMessage({
         type: 'error',
-        data: { message: `Model initialization failed: ${error}` }
+        data: { message: `Model init failed: ${error instanceof Error ? error.message : String(error)}` },
       });
+    } finally {
+      this.isInitializing = false;
     }
   }
 
   private async loadModel(modelDir: string): Promise<void> {
-    try {
-      // Try local model first, then fallback to a small online model
-      let modelId = modelDir;
-      
-      if (!fs.existsSync(modelDir)) {
-        console.log(`Local model not found at ${modelDir}, using fallback model`);
-        // Use a small, fast model for development
-        modelId = 'microsoft/DialoGPT-small';
-      }
+    let modelId = 'Xenova/gpt2';
+    if (this.checkLocalModel(modelDir)) modelId = modelDir;
 
-      console.log(`Loading model: ${modelId}`);
-      
-      this.completionPipeline = await pipeline('text-generation', modelId, {
-        // Optimize for speed and memory usage
-        device: 'cpu',
-        dtype: 'fp32',
-      }) as TextGenerationPipeline;
+    const loadingPromise = pipeline('text-generation', modelId, {
+      quantized: true,
+      progress_callback: (progress: any) => {
+        if (progress.status === 'downloading') {
+          const percent = Math.round(progress.progress || 0);
+          console.log(`Downloading ${progress.file}: ${percent}%`);
+        } else if (progress.status === 'done') {
+          console.log(`Downloaded: ${progress.file}`);
+        }
+      },
+    });
 
-      console.log('Model loaded successfully');
-    } catch (error) {
-      throw new Error(`Model loading failed: ${error}`);
-    }
+    const timeoutPromise = new Promise((_, reject) =>
+      setTimeout(() => reject(new Error('Model loading timeout (60s)')), 60000)
+    );
+
+    this.completionPipeline = (await Promise.race([
+      loadingPromise,
+      timeoutPromise,
+    ])) as TextGenerationPipeline;
+  }
+
+  private checkLocalModel(modelDir: string): boolean {
+    if (!fs.existsSync(modelDir)) return false;
+    const requiredFiles = ['config.json', 'tokenizer_config.json', 'tokenizer.json'];
+    return requiredFiles.every(file => fs.readdirSync(modelDir).includes(file));
   }
 
   private async handleCompletionRequest(prompt: string, requestId: string): Promise<void> {
-    try {
-      if (!this.isInitialized || !this.completionPipeline) {
-        this.sendMessage({
-          type: 'completionResult',
-          data: { suggestion: '', requestId }
-        });
-        return;
-      }
-
-      const suggestion = await this.generateCompletion(prompt);
-      
-      this.sendMessage({
-        type: 'completionResult',
-        data: { suggestion, requestId }
-      });
-
-    } catch (error) {
-      console.error('Error generating completion:', error);
-      this.sendMessage({
-        type: 'completionResult',
-        data: { suggestion: '', requestId }
-      });
+    if (!this.isInitialized || !this.completionPipeline) {
+      return this.sendMessage({ type: 'completionResult', data: { suggestion: '', requestId } });
     }
+
+    const suggestion = await this.generateCompletion(prompt);
+    this.sendMessage({ type: 'completionResult', data: { suggestion, requestId } });
   }
 
   private async generateCompletion(prompt: string): Promise<string> {
-    if (!this.completionPipeline) {
-      return '';
-    }
+    const codePrompt = this.createCodePrompt(prompt);
 
-    try {
-      // Create a focused prompt for code completion
-      const codePrompt = this.createCodePrompt(prompt);
-      
-      const output = await this.completionPipeline(codePrompt, {
-        max_new_tokens: 50,
-        temperature: 0.1,
-        do_sample: true,
-        pad_token_id: 50256, // GPT-2 pad token
-        eos_token_id: 50256,
-        repetition_penalty: 1.1,
-      });
+    const output = await this.completionPipeline!(codePrompt, {
+      max_new_tokens: 30,
+      temperature: 0.2,
+      do_sample: true,
+      repetition_penalty: 1.1,
+      pad_token_id: 50256,
+      eos_token_id: 50256,
+      max_time: 5.0,
+    });
 
-      return this.extractSuggestion(output, prompt);
-    } catch (error) {
-      console.error('Error in generateCompletion:', error);
-      return '';
-    }
+    return this.extractSuggestion(output, codePrompt);
   }
 
   private createCodePrompt(prompt: string): string {
-    // Extract the last few lines for context
-    const lines = prompt.split('\n');
-    const contextLines = lines.slice(-5); // Last 5 lines
-    
-    // Create a simple completion prompt
-    return `// Complete this code:\n${contextLines.join('\n')}`;
+    return prompt.split('\n').slice(-3).join('\n');
   }
 
-  private extractSuggestion(output: TextGenerationOutput | TextGenerationOutput[], originalPrompt: string): string {
-    try {
-      let generatedText = Array.isArray(output) ? output[0]?.generated_text : output.generated_text;
-      
-      if (!generatedText) {
-        return '';
-      }
-
-      // Remove the original prompt from the generated text
-      const promptStart = generatedText.indexOf(originalPrompt);
-      if (promptStart !== -1) {
-        generatedText = generatedText.substring(promptStart + originalPrompt.length);
-      }
-
-      // Clean up the suggestion
-      let suggestion = generatedText.trim();
-      
-      // Remove common unwanted prefixes/suffixes
-      suggestion = suggestion.replace(/^(\/\/.*\n|\/\*.*\*\/\n?)/g, ''); // Remove comments
-      suggestion = suggestion.split('\n')[0]; // Take only the first line
-      
-      // Limit length
-      if (suggestion.length > 100) {
-        suggestion = suggestion.substring(0, 100);
-      }
-
-      return suggestion.trim();
-    } catch (error) {
-      console.error('Error extracting suggestion:', error);
-      return '';
+  private extractSuggestion(output: TextGenerationOutput[], originalPrompt: string): string {
+    if (!output?.length) return '';
+    let generated = output[0].generated_text;
+    if (generated.startsWith(originalPrompt)) {
+      generated = generated.slice(originalPrompt.length);
     }
+    return generated.trim().split('\n')[0]?.trim().slice(0, 80) || '';
   }
 
   private sendMessage(message: AgentMessage): void {
@@ -230,13 +173,6 @@ class PredicAgent {
   }
 }
 
-// Initialize the agent
-const agent = new PredicAgent();
-
-// Keep the process alive
-process.on('SIGTERM', () => {
-  console.log('Agent received SIGTERM, shutting down...');
-  process.exit(0);
-});
-
-console.log('Predic agent process started');
+new PredicAgent();
+process.on('SIGTERM', () => process.exit(0));
+process.on('SIGINT', () => process.exit(0));
