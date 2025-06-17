@@ -14,12 +14,30 @@ type ExtensionMessage =
 class PredicAgent {
   private agent: ChildProcess | null = null;
   private isReady: boolean = false;
+  private isInitializing: boolean = false;
   private pendingRequests = new Map<string, (suggestion: string) => void>();
   private statusBarItem: vscode.StatusBarItem | null = null;
+  private initializationPromise: Promise<boolean> | null = null;
 
   constructor(private context: vscode.ExtensionContext) {}
 
   async initialize(): Promise<boolean> {
+    if (this.initializationPromise) {
+      return this.initializationPromise;
+    }
+
+    this.initializationPromise = this.doInitialize();
+    return this.initializationPromise;
+  }
+
+  private async doInitialize(): Promise<boolean> {
+    if (this.isInitializing) {
+      return false;
+    }
+
+    this.isInitializing = true;
+    this.updateStatusBar('$(loading~spin) Predic: Initializing...');
+
     try {
       const agentPath = path.join(this.context.extensionPath, 'dist', 'agent.js');
       
@@ -27,13 +45,22 @@ class PredicAgent {
       try {
         await vscode.workspace.fs.stat(vscode.Uri.file(agentPath));
       } catch {
-        vscode.window.showErrorMessage('Predic: Agent file not found. Please build the extension first.');
+        const message = 'Predic: Agent file not found. Please build the extension first using "npm run build".';
+        vscode.window.showErrorMessage(message);
+        this.updateStatusBar('$(error) Predic: Build Required');
+        this.isInitializing = false;
         return false;
       }
 
+      // Fork the agent process
       this.agent = fork(agentPath, [], { 
-        stdio: 'pipe',
-        silent: true 
+        stdio: ['pipe', 'pipe', 'pipe', 'ipc'],
+        silent: false,
+        cwd: this.context.extensionPath,
+        env: {
+          ...process.env,
+          NODE_ENV: 'production'
+        }
       });
 
       this.setupAgentListeners();
@@ -42,12 +69,46 @@ class PredicAgent {
       const modelPath = path.join(this.context.extensionPath, 'models');
       this.sendMessage({ type: 'init', data: { modelPath } });
 
-      return true;
+      // Wait for ready signal with timeout
+      const success = await this.waitForReady();
+      this.isInitializing = false;
+      return success;
+
     } catch (error) {
       console.error('Failed to initialize Predic agent:', error);
-      vscode.window.showErrorMessage(`Predic: Failed to initialize agent - ${error}`);
+      this.isInitializing = false;
+      this.updateStatusBar('$(error) Predic: Failed to Initialize');
+      vscode.window.showErrorMessage(`Predic: Failed to initialize agent - ${error instanceof Error ? error.message : String(error)}`);
       return false;
     }
+  }
+
+  private waitForReady(): Promise<boolean> {
+    return new Promise<boolean>((resolve) => {
+      const timeout = setTimeout(() => {
+        console.log('Agent initialization timeout');
+        resolve(false);
+      }, 120000); // 2 minute timeout for model loading
+
+      const messageHandler = (message: AgentMessage) => {
+        if (message.type === 'ready') {
+          clearTimeout(timeout);
+          this.agent?.off('message', messageHandler);
+          resolve(true);
+        } else if (message.type === 'error') {
+          clearTimeout(timeout);
+          this.agent?.off('message', messageHandler);
+          resolve(false);
+        }
+      };
+
+      if (this.agent) {
+        this.agent.on('message', messageHandler);
+      } else {
+        clearTimeout(timeout);
+        resolve(false);
+      }
+    });
   }
 
   private setupAgentListeners(): void {
@@ -65,19 +126,32 @@ class PredicAgent {
       // Clear pending requests
       this.pendingRequests.forEach(resolve => resolve(''));
       this.pendingRequests.clear();
+
+      // Show error message if unexpected exit
+      if (code !== 0 && code !== null) {
+        vscode.window.showErrorMessage(`Predic agent crashed with exit code ${code}`);
+      }
     });
 
     this.agent.on('error', (error) => {
       console.error('Predic agent error:', error);
+      this.updateStatusBar('$(error) Predic: Agent Error');
       vscode.window.showErrorMessage(`Predic Agent Error: ${error.message}`);
     });
 
+    // Better logging for debugging
     this.agent.stdout?.on('data', (data) => {
-      console.log(`[Predic Agent STDOUT]: ${data}`);
+      const message = data.toString().trim();
+      if (message) {
+        console.log(`[Predic Agent]: ${message}`);
+      }
     });
 
     this.agent.stderr?.on('data', (data) => {
-      console.error(`[Predic Agent STDERR]: ${data}`);
+      const message = data.toString().trim();
+      if (message) {
+        console.error(`[Predic Agent Error]: ${message}`);
+      }
     });
   }
 
@@ -92,6 +166,7 @@ class PredicAgent {
       case 'error':
         this.isReady = false;
         this.updateStatusBar('$(error) Predic: Error');
+        console.error('Agent error:', message.data.message);
         vscode.window.showErrorMessage(`Predic: ${message.data.message}`);
         break;
 
@@ -108,6 +183,7 @@ class PredicAgent {
   private updateStatusBar(text: string): void {
     if (!this.statusBarItem) {
       this.statusBarItem = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Right, 100);
+      this.statusBarItem.tooltip = 'Predic AI Code Completion';
       this.context.subscriptions.push(this.statusBarItem);
     }
     this.statusBarItem.text = text;
@@ -115,8 +191,10 @@ class PredicAgent {
   }
 
   private sendMessage(message: ExtensionMessage): void {
-    if (this.agent) {
+    if (this.agent && this.agent.connected) {
       this.agent.send(message);
+    } else {
+      console.error('Cannot send message: agent not connected');
     }
   }
 
@@ -125,13 +203,13 @@ class PredicAgent {
       return '';
     }
 
-    const requestId = Math.random().toString(36).substring(7);
+    const requestId = `req_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
     
     return new Promise<string>((resolve) => {
       const timeout = setTimeout(() => {
         this.pendingRequests.delete(requestId);
         resolve('');
-      }, 5000); // 5 second timeout
+      }, 8000); // 8 second timeout
 
       this.pendingRequests.set(requestId, (suggestion: string) => {
         clearTimeout(timeout);
@@ -151,7 +229,9 @@ class PredicAgent {
       this.agent = null;
     }
     this.isReady = false;
+    this.isInitializing = false;
     this.pendingRequests.clear();
+    this.initializationPromise = null;
   }
 }
 
@@ -163,6 +243,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
   // Initialize the agent
   const initialized = await predicAgent.initialize();
   if (!initialized) {
+    console.error('Failed to initialize Predic agent');
     return;
   }
 
@@ -180,31 +261,45 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
         return [];
       }
 
+      // Skip for very short files or at the beginning
+      if (position.line < 1 || document.lineCount < 2) {
+        return [];
+      }
+
       // Get text before cursor (limited to avoid huge prompts)
+      const startLine = Math.max(0, position.line - 20);
       const textBeforeCursor = document.getText(
-        new vscode.Range(new vscode.Position(Math.max(0, position.line - 10), 0), position)
+        new vscode.Range(new vscode.Position(startLine, 0), position)
       );
       
-      const prompt = textBeforeCursor.slice(-1000).trim(); // Last 1000 chars
+      // Limit prompt size and clean it
+      const prompt = textBeforeCursor.slice(-800).trim();
       
-      if (prompt.length === 0) {
+      if (prompt.length < 10) {
         return [];
       }
 
       try {
-        const suggestion = await Promise.race([
-          predicAgent.getCompletion(prompt),
-          new Promise<string>(resolve => {
-            token.onCancellationRequested(() => resolve(''));
-            setTimeout(() => resolve(''), 3000); // 3 second timeout
-          })
-        ]);
+        const suggestionPromise = predicAgent.getCompletion(prompt);
+        const timeoutPromise = new Promise<string>(resolve => {
+          const timeout = setTimeout(() => resolve(''), 5000);
+          token.onCancellationRequested(() => {
+            clearTimeout(timeout);
+            resolve('');
+          });
+        });
 
-        if (token.isCancellationRequested || !suggestion.trim()) {
+        const suggestion = await Promise.race([suggestionPromise, timeoutPromise]);
+
+        if (token.isCancellationRequested || !suggestion || suggestion.trim().length === 0) {
           return [];
         }
 
-        return [new vscode.InlineCompletionItem(suggestion.trim())];
+        // Create the completion item
+        const item = new vscode.InlineCompletionItem(suggestion.trim());
+        item.range = new vscode.Range(position, position);
+        
+        return [item];
       } catch (error) {
         console.error('Error getting completion:', error);
         return [];
@@ -212,21 +307,35 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     }
   };
 
-  // Register for all supported file types
+  // Register for more file types
   const selector: vscode.DocumentSelector = [
     { language: 'javascript' },
     { language: 'typescript' },
     { language: 'javascriptreact' },
     { language: 'typescriptreact' },
-    { language: 'html' },
     { language: 'css' },
-    { language: 'json' }
   ];
 
+  const disposable = vscode.languages.registerInlineCompletionItemProvider(selector, provider);
+  
   context.subscriptions.push(
-    vscode.languages.registerInlineCompletionItemProvider(selector, provider),
+    disposable,
     { dispose: () => predicAgent.dispose() }
   );
+
+  // Add a command to restart the agent
+  const restartCommand = vscode.commands.registerCommand('predic.restart', async () => {
+    predicAgent.dispose();
+    const newAgent = new PredicAgent(context);
+    const success = await newAgent.initialize();
+    if (success) {
+      vscode.window.showInformationMessage('Predic agent restarted successfully!');
+    } else {
+      vscode.window.showErrorMessage('Failed to restart Predic agent');
+    }
+  });
+
+  context.subscriptions.push(restartCommand);
 
   console.log('Predic extension activated successfully!');
 }
