@@ -1,7 +1,0 @@
-{
-  "_name_or_path": "onnx-community/gemma-3-1b-it-ONNX-GQA",
-  "architectures": [
-    "GemmaForCausalLM"
-  ],
-  "model_type": "gemma"
-}
