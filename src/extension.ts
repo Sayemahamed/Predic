@@ -274,6 +274,8 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
       
       // Limit prompt size and clean it
       const prompt = textBeforeCursor.slice(-800).trim();
+
+      console.log(`[Extension] Sending prompt to agent: "${prompt}"`);
       
       if (prompt.length < 10) {
         return [];
