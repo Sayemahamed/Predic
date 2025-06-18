@@ -9,7 +9,7 @@ type AgentMessage =
 
 type ExtensionMessage =
   | { type: 'init'; data: { modelPath: string } }
-  | { type: 'getCompletion'; data: { prompt: string; requestId: string } };
+  | { type: 'getCompletion'; data: { prompt: string; requestId: string; language: string } };
 
 class PredicAgent {
   private agent: ChildProcess | null = null;
@@ -36,11 +36,11 @@ class PredicAgent {
     }
 
     this.isInitializing = true;
-    this.updateStatusBar('$(loading~spin) Predic: Initializing...');
+    this.updateStatusBar('$(loading~spin) Predic: Loading SmolLM2...');
 
     try {
       const agentPath = path.join(this.context.extensionPath, 'dist', 'agent.js');
-      
+
       // Check if agent.js exists
       try {
         await vscode.workspace.fs.stat(vscode.Uri.file(agentPath));
@@ -52,24 +52,26 @@ class PredicAgent {
         return false;
       }
 
-      // Fork the agent process
-      this.agent = fork(agentPath, [], { 
+      // Fork the agent process with more memory for the larger model
+      this.agent = fork(agentPath, [], {
         stdio: ['pipe', 'pipe', 'pipe', 'ipc'],
         silent: false,
         cwd: this.context.extensionPath,
         env: {
           ...process.env,
-          NODE_ENV: 'production'
-        }
+          NODE_ENV: 'production',
+          NODE_OPTIONS: '--max-old-space-size=2048' // Increase memory limit
+        },
+        execArgv: ['--max-old-space-size=2048'] // Also set for the child process
       });
 
       this.setupAgentListeners();
-      
+
       // Initialize the model
       const modelPath = path.join(this.context.extensionPath, 'models');
       this.sendMessage({ type: 'init', data: { modelPath } });
 
-      // Wait for ready signal with timeout
+      // Wait for ready signal with longer timeout for model download
       const success = await this.waitForReady();
       this.isInitializing = false;
       return success;
@@ -85,10 +87,12 @@ class PredicAgent {
 
   private waitForReady(): Promise<boolean> {
     return new Promise<boolean>((resolve) => {
+      // Longer timeout for initial model download (5 minutes)
       const timeout = setTimeout(() => {
         console.log('Agent initialization timeout');
+        this.updateStatusBar('$(error) Predic: Initialization Timeout');
         resolve(false);
-      }, 120000); // 2 minute timeout for model loading
+      }, 300000); // 5 minute timeout for model loading
 
       const messageHandler = (message: AgentMessage) => {
         if (message.type === 'ready') {
@@ -122,7 +126,7 @@ class PredicAgent {
       console.log(`Predic agent exited with code ${code}, signal ${signal}`);
       this.isReady = false;
       this.updateStatusBar('$(error) Predic: Agent Stopped');
-      
+
       // Clear pending requests
       this.pendingRequests.forEach(resolve => resolve(''));
       this.pendingRequests.clear();
@@ -159,8 +163,8 @@ class PredicAgent {
     switch (message.type) {
       case 'ready':
         this.isReady = true;
-        this.updateStatusBar('$(zap) Predic: Ready');
-        vscode.window.showInformationMessage('Predic is ready for code completion!');
+        this.updateStatusBar('$(zap) Predic: SmolLM2 Ready');
+        vscode.window.showInformationMessage('Predic with SmolLM2-360M-Instruct is ready for intelligent code completion!');
         break;
 
       case 'error':
@@ -183,7 +187,7 @@ class PredicAgent {
   private updateStatusBar(text: string): void {
     if (!this.statusBarItem) {
       this.statusBarItem = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Right, 100);
-      this.statusBarItem.tooltip = 'Predic AI Code Completion';
+      this.statusBarItem.tooltip = 'Predic AI Code Completion with SmolLM2-360M-Instruct';
       this.context.subscriptions.push(this.statusBarItem);
     }
     this.statusBarItem.text = text;
@@ -198,27 +202,27 @@ class PredicAgent {
     }
   }
 
-  async getCompletion(prompt: string): Promise<string> {
+  async getCompletion(prompt: string, language: string): Promise<string> {
     if (!this.agent || !this.isReady) {
       return '';
     }
 
     const requestId = `req_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
-    
+
     return new Promise<string>((resolve) => {
       const timeout = setTimeout(() => {
         this.pendingRequests.delete(requestId);
         resolve('');
-      }, 8000); // 8 second timeout
+      }, 10000); // 10 second timeout for SmolLM2
 
       this.pendingRequests.set(requestId, (suggestion: string) => {
         clearTimeout(timeout);
         resolve(suggestion);
       });
 
-      this.sendMessage({ 
-        type: 'getCompletion', 
-        data: { prompt, requestId } 
+      this.sendMessage({
+        type: 'getCompletion',
+        data: { prompt, requestId, language }
       });
     });
   }
@@ -235,11 +239,30 @@ class PredicAgent {
   }
 }
 
+// Helper method to clean suggestions
+function cleanSuggestion(suggestion: string, currentPrefix: string): string {
+  // Remove any part of the suggestion that repeats the current prefix
+  const lastWord = currentPrefix.split(/\s+/).pop() || '';
+  if (lastWord && suggestion.toLowerCase().startsWith(lastWord.toLowerCase())) {
+    suggestion = suggestion.substring(lastWord.length);
+  }
+
+  // Remove leading/trailing whitespace but preserve internal structure
+  suggestion = suggestion.trim();
+
+  // Don't suggest if it's just whitespace or very short
+  if (suggestion.length < 2) {
+    return '';
+  }
+
+  return suggestion;
+}
+
 export async function activate(context: vscode.ExtensionContext): Promise<void> {
-  console.log('Predic extension is being activated...');
+  console.log('Predic extension with SmolLM2-360M-Instruct is being activated...');
 
   const predicAgent = new PredicAgent(context);
-  
+
   // Initialize the agent
   const initialized = await predicAgent.initialize();
   if (!initialized) {
@@ -255,7 +278,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
       context: vscode.InlineCompletionContext,
       token: vscode.CancellationToken
     ): Promise<vscode.InlineCompletionItem[]> {
-      
+
       // Skip if cancellation is already requested
       if (token.isCancellationRequested) {
         return [];
@@ -266,25 +289,35 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
         return [];
       }
 
+      // Get the current line to check if we should trigger completion
+      const currentLine = document.lineAt(position).text;
+      const currentPrefix = currentLine.substring(0, position.character);
+
+      // Skip if at the very beginning of a line with only whitespace
+      if (currentPrefix.trim().length === 0 && position.character < 2) {
+        return [];
+      }
+
       // Get text before cursor (limited to avoid huge prompts)
-      const startLine = Math.max(0, position.line - 20);
+      const startLine = Math.max(0, position.line - 10);
       const textBeforeCursor = document.getText(
         new vscode.Range(new vscode.Position(startLine, 0), position)
       );
-      
-      // Limit prompt size and clean it
-      const prompt = textBeforeCursor.slice(-800).trim();
 
-      console.log(`[Extension] Sending prompt to agent: "${prompt}"`);
-      
+      // Limit prompt size and clean it
+      const prompt = textBeforeCursor.slice(-1000).trim();
+      const language = document.languageId;
+
+      console.log(`[Extension] Sending prompt to SmolLM2 agent for ${language}: "${prompt}"`);
+
       if (prompt.length < 10) {
         return [];
       }
 
       try {
-        const suggestionPromise = predicAgent.getCompletion(prompt);
+        const suggestionPromise = predicAgent.getCompletion(prompt, language);
         const timeoutPromise = new Promise<string>(resolve => {
-          const timeout = setTimeout(() => resolve(''), 5000);
+          const timeout = setTimeout(() => resolve(''), 8000);
           token.onCancellationRequested(() => {
             clearTimeout(timeout);
             resolve('');
@@ -297,10 +330,18 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
           return [];
         }
 
+        // Ensure the suggestion doesn't repeat what's already typed
+        const trimmedSuggestion = cleanSuggestion(suggestion, currentPrefix); // Call the standalone function
+
+        if (!trimmedSuggestion) {
+          return [];
+        }
+
         // Create the completion item
-        const item = new vscode.InlineCompletionItem(suggestion.trim());
+        const item = new vscode.InlineCompletionItem(trimmedSuggestion);
         item.range = new vscode.Range(position, position);
-        
+
+        console.log(`[Extension] Providing suggestion: "${trimmedSuggestion}"`);
         return [item];
       } catch (error) {
         console.error('Error getting completion:', error);
@@ -309,7 +350,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     }
   };
 
-  // Register for more file types
+  // Register for more file types including popular programming languages
   const selector: vscode.DocumentSelector = [
     { language: 'javascript' },
     { language: 'typescript' },
@@ -319,7 +360,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
   ];
 
   const disposable = vscode.languages.registerInlineCompletionItemProvider(selector, provider);
-  
+
   context.subscriptions.push(
     disposable,
     { dispose: () => predicAgent.dispose() }
@@ -327,11 +368,12 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
 
   // Add a command to restart the agent
   const restartCommand = vscode.commands.registerCommand('predic.restart', async () => {
+    vscode.window.showInformationMessage('Restarting Predic agent...');
     predicAgent.dispose();
     const newAgent = new PredicAgent(context);
     const success = await newAgent.initialize();
     if (success) {
-      vscode.window.showInformationMessage('Predic agent restarted successfully!');
+      vscode.window.showInformationMessage('Predic agent with SmolLM2 restarted successfully!');
     } else {
       vscode.window.showErrorMessage('Failed to restart Predic agent');
     }
@@ -339,7 +381,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
 
   context.subscriptions.push(restartCommand);
 
-  console.log('Predic extension activated successfully!');
+  console.log('Predic extension with SmolLM2-360M-Instruct activated successfully!');
 }
 
 export function deactivate(): Thenable<void> | undefined {
