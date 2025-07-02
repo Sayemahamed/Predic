@@ -1,7 +1,7 @@
 # 🔮 Predic: Offline & Private AI Code Completion
 
 <p align="center">
-  <img src="https://raw.githubusercontent.com/Sayemahamed/Predic/master/media/logo.png" width="120" />
+  <img src="https://raw.githubusercontent.com/Sayemahamed/Predic/main/media/logo.png" width="120" />
 </p>
 
 <p align="center">
@@ -16,8 +16,8 @@
 
 ---
 
-![Predic Demo GIF](https://raw.githubusercontent.com/Sayemahamed/Predic/main/images/predic-demo.gif)
-> *(**Pro-tip:** Create a cool animated GIF showing Predic in action and replace the link above!)*
+![Predic Demo GIF](https://raw.githubusercontent.com/Sayemahamed/Predic/main/media/predic-demo.mp4)
+<!-- > *(**Pro-tip:** Create a cool animated GIF showing Predic in action and replace the link above!)* -->
 
 ## ✨ Core Features
 
@@ -26,7 +26,7 @@
 * **Instant Completions:** Uses a lightweight, quantized AI model that runs efficiently on your local hardware.
 * **Multi-Language Support:** Get smart completions for modern web development.
     * JavaScript & TypeScript
-    * React (.jsx & .tsx)
+    * React (.js, .ts, .jsx & .tsx)
     * CSS
 * **Easy to Use:** Simply install from the marketplace and start coding. No complex setup or API keys required.
 
@@ -54,7 +54,7 @@ To get started with local development:
 1.  **Prerequisites:** Make sure you have [Node.js](https://nodejs.org/) installed.
 2.  **Clone the Repository:**
     ```bash
-    git clone [https://github.com/Sayemahamed/Predic.git](https://github.com/Sayemahamed/Predic.git)
+    git clone https://github.com/Sayemahamed/Predic.git
     cd Predic
     ```
 3.  **Install Dependencies:**
