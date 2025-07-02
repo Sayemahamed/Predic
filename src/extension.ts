@@ -86,7 +86,7 @@ class PredicAgent {
   private waitForReady(): Promise<boolean> {
     return new Promise<boolean>((resolve) => {
       const timeout = setTimeout(() => {
-        //console.log('Agent initialization timeout');
+        console.log('Agent initialization timeout');
         resolve(false);
       }, 120000); // 2 minute timeout for model loading
 
@@ -119,7 +119,7 @@ class PredicAgent {
     });
 
     this.agent.on('exit', (code, signal) => {
-      //console.log(`Predic agent exited with code ${code}, signal ${signal}`);
+      console.log(`Predic agent exited with code ${code}, signal ${signal}`);
       this.isReady = false;
       this.updateStatusBar('$(error) Predic: Agent Stopped');
       
@@ -194,7 +194,7 @@ class PredicAgent {
     if (this.agent && this.agent.connected) {
       this.agent.send(message);
     } else {
-      //console.error('Cannot send message: agent not connected');
+      console.error('Cannot send message: agent not connected');
     }
   }
 
@@ -236,14 +236,14 @@ class PredicAgent {
 }
 
 export async function activate(context: vscode.ExtensionContext): Promise<void> {
-  //console.log('Predic extension is being activated...');
+  console.log('Predic extension is being activated...');
 
   const predicAgent = new PredicAgent(context);
   
   // Initialize the agent
   const initialized = await predicAgent.initialize();
   if (!initialized) {
-    //console.error('Failed to initialize Predic agent');
+    console.error('Failed to initialize Predic agent');
     return;
   }
 
@@ -288,7 +288,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
       // Limit prompt size and clean it
       const prompt = textBeforeCursor.slice(-800).trim();
 
-      //console.log(`[Extension] Sending prompt to agent: "${prompt}"`);
+      console.log(`[Extension] Sending prompt to agent: "${prompt}"`);
       
       if (prompt.length < 10) {
         return [];
