@@ -1,5 +1,13 @@
 # 🔮 Predic: Offline & Private AI Code Completion
 
+<p align="center">
+  <img src="https://raw.githubusercontent.com/Sayemahamed/Predic/master/media/logo.png" width="120" />
+</p>
+
+<p align="center">
+  <strong>Your Private and Offline AI code Completion Agent</strong>
+</p>
+
 [![VS Code Marketplace](https://img.shields.io/visual-studio-marketplace/v/your-publisher.predic?style=for-the-badge&label=Marketplace&color=blue)](https://marketplace.visualstudio.com/items?itemName=your-publisher.predic)
 [![Installs](https://img.shields.io/visual-studio-marketplace/i/your-publisher.predic?style=for-the-badge&color=green)](https://marketplace.visualstudio.com/items?itemName=your-publisher.predic)
 [![Rating](https://img.shields.io/visual-studio-marketplace/r/your-publisher.predic?style=for-the-badge&color=yellow)](https://marketplace.visualstudio.com/items?itemName=your-publisher.predic)
