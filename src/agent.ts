@@ -133,7 +133,7 @@ class PredicAgent {
       return this.sendMessage({ type: 'completionResult', data: { suggestion: '', requestId } });
     }
 
-    //console.log(`[Agent] Received prompt: "${prompt}"`);
+    console.log(`[Agent] Received prompt: "${prompt}"`);
 
     const suggestion = await this.generateCompletion(prompt);
     this.sendMessage({ type: 'completionResult', data: { suggestion, requestId } });
@@ -152,7 +152,7 @@ class PredicAgent {
       max_time: 5.0,
     });
 
-    //console.log(`[Agent] Raw model output: ${JSON.stringify(output)}`);
+    console.log(`[Agent] Raw model output: ${JSON.stringify(output)}`);
 
     return this.extractSuggestion(output, codePrompt);
   }
