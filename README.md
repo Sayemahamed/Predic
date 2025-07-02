@@ -16,8 +16,8 @@
 
 ---
 
-![Predic Demo GIF](https://raw.githubusercontent.com/Sayemahamed/Predic/main/media/predic-demo.gif)
-<!-- > *(**Pro-tip:** Create a cool animated GIF showing Predic in action and replace the link above!)* -->
+<!--- ![Predic Demo GIF](https://raw.githubusercontent.com/Sayemahamed/Predic/main/media/predic-demo.gif)
+ > *(**Pro-tip:** Create a cool animated GIF showing Predic in action and replace the link above!)* -->
 
 ## ✨ Core Features
 
