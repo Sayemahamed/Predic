@@ -19,7 +19,7 @@ type AgentMessage =
 
 type ExtensionMessage =
   | { type: 'init'; data: { modelPath: string } }
-  | { type: 'getCompletion'; data: { prompt: string; requestId: string; language: string } };
+  | { type: 'getCompletion'; data: { prompt: string; requestId: string } };
 
 class PredicAgent {
   private completionPipeline: TextGenerationPipeline | null = null;
@@ -63,11 +63,7 @@ class PredicAgent {
         await this.initializeModel(message.data.modelPath);
         break;
       case 'getCompletion':
-        await this.handleCompletionRequest(
-          message.data.prompt, 
-          message.data.requestId,
-          message.data.language
-        );
+        await this.handleCompletionRequest(message.data.prompt, message.data.requestId);
         break;
     }
   }
@@ -101,212 +97,86 @@ class PredicAgent {
   }
 
   private async loadModel(modelDir: string): Promise<void> {
-    // List of models to try in order of preference
-    const modelCandidates = [
-      // 'microsoft/DialoGPT-small',
-      // 'Xenova/gpt2',
-      // 'Xenova/distilgpt2',
-      'HuggingFaceTB/SmolLM2-360M-Instruct'
-    ];
+    let modelId = 'Xenova/gpt2';
+    if (this.checkLocalModel(modelDir)) modelId = modelDir;
 
-    let modelLoaded = false;
-    let lastError: Error | null = null;
-
-    // Check if local model exists first
-    if (this.checkLocalModel(modelDir)) {
-      try {
-        console.log(`Loading local model: ${modelDir}`);
-        await this.loadModelWithRetry(modelDir);
-        modelLoaded = true;
-      } catch (error) {
-        console.log(`Local model failed, trying remote models: ${error}`);
-        lastError = error instanceof Error ? error : new Error(String(error));
-      }
-    }
-
-    // If local model didn't work, try remote models
-    if (!modelLoaded) {
-      for (const modelId of modelCandidates) {
-        try {
-          console.log(`Attempting to load model: ${modelId}`);
-          await this.loadModelWithRetry(modelId);
-          modelLoaded = true;
-          console.log(`Successfully loaded model: ${modelId}`);
-          break;
-        } catch (error) {
-          console.log(`Failed to load ${modelId}: ${error}`);
-          lastError = error instanceof Error ? error : new Error(String(error));
+    const loadingPromise = pipeline('text-generation', modelId, {
+      quantized: true,
+      progress_callback: (progress: any) => {
+        if (progress.status === 'downloading') {
+          const percent = Math.round(progress.progress || 0);
+          // console.log(`Downloading ${progress.file}: ${percent}%`);
+        } else if (progress.status === 'done') {
+          // console.log(`Downloaded: ${progress.file}`);
         }
-      }
-    }
+      },
+    });
 
-    if (!modelLoaded) {
-      throw new Error(`Failed to load any model. Last error: ${lastError?.message || 'Unknown error'}`);
-    }
-  }
+    const timeoutPromise = new Promise((_, reject) =>
+      setTimeout(() => reject(new Error('Model loading timeout (60s)')), 60000)
+    );
 
-  private async loadModelWithRetry(modelId: string, maxRetries: number = 2): Promise<void> {
-    for (let attempt = 1; attempt <= maxRetries; attempt++) {
-      try {
-        const loadingPromise = pipeline('text-generation', modelId, {
-          quantized: false, // Try without quantization first
-          progress_callback: (progress: any) => {
-            if (progress.status === 'downloading') {
-              const percent = Math.round(progress.progress || 0);
-              console.log(`Downloading ${progress.file}: ${percent}%`);
-            } else if (progress.status === 'done') {
-              console.log(`Downloaded: ${progress.file}`);
-            }
-          },
-        });
-
-        // Increase timeout for model download
-        const timeoutPromise = new Promise((_, reject) =>
-          setTimeout(() => reject(new Error(`Model loading timeout (180s) - attempt ${attempt}`)), 180000)
-        );
-
-        this.completionPipeline = (await Promise.race([
-          loadingPromise,
-          timeoutPromise,
-        ])) as TextGenerationPipeline;
-
-        return; // Success
-      } catch (error) {
-        console.log(`Attempt ${attempt} failed for ${modelId}: ${error}`);
-        
-        if (attempt === maxRetries) {
-          throw error;
-        }
-        
-        // Wait before retry
-        await new Promise(resolve => setTimeout(resolve, 2000));
-      }
-    }
+    this.completionPipeline = (await Promise.race([
+      loadingPromise,
+      timeoutPromise,
+    ])) as TextGenerationPipeline;
   }
 
   private checkLocalModel(modelDir: string): boolean {
     if (!fs.existsSync(modelDir)) return false;
-    const requiredFiles = ['config.json'];
-    return requiredFiles.some(file => {
-      const files = fs.readdirSync(modelDir);
-      return files.includes(file);
-    });
+    const requiredFiles = ['config.json', 'tokenizer_config.json', 'tokenizer.json'];
+    return requiredFiles.every(file => fs.readdirSync(modelDir).includes(file));
   }
 
-  private async handleCompletionRequest(prompt: string, requestId: string, language: string): Promise<void> {
+  private async handleCompletionRequest(prompt: string, requestId: string): Promise<void> {
     if (!this.isInitialized || !this.completionPipeline) {
       return this.sendMessage({ type: 'completionResult', data: { suggestion: '', requestId } });
     }
 
-    console.log(`[Agent] Received prompt for ${language}: "${prompt}"`);
+    //console.log(`[Agent] Received prompt: "${prompt}"`);
 
-    const suggestion = await this.generateCompletion(prompt, language);
+    const suggestion = await this.generateCompletion(prompt);
     this.sendMessage({ type: 'completionResult', data: { suggestion, requestId } });
   }
 
-  private async generateCompletion(prompt: string, language: string): Promise<string> {
-    const instructPrompt = this.createInstructPrompt(prompt, language);
+  private async generateCompletion(prompt: string): Promise<string> {
+    const codePrompt = this.createCodePrompt(prompt);
 
-    console.log(`[Agent] Instruction prompt: "${instructPrompt}"`);
+    const output = await this.completionPipeline!(codePrompt, {
+      max_new_tokens: 30,
+      temperature: 0.2,
+      do_sample: true,
+      repetition_penalty: 1.1,
+      pad_token_id: 50256,
+      eos_token_id: 50256,
+      max_time: 5.0,
+    });
 
-    try {
-      const output = await this.completionPipeline!(instructPrompt, {
-        max_new_tokens: 30,
-        temperature: 0.3,
-        do_sample: true,
-        repetition_penalty: 1.1,
-        top_p: 0.8,
-        top_k: 50,
-        pad_token_id: 0,
-        max_time: 5.0,
-        return_full_text: false,
-      });
+    //console.log(`[Agent] Raw model output: ${JSON.stringify(output)}`);
 
-      console.log(`[Agent] Raw model output: ${JSON.stringify(output)}`);
-
-      return this.extractSuggestion(output, instructPrompt);
-    } catch (error) {
-      console.error(`[Agent] Generation error: ${error}`);
-      return '';
-    }
+    return this.extractSuggestion(output, codePrompt);
   }
 
-  private createInstructPrompt(prompt: string, language: string): string {
-    // Get the last few lines of context
-    const lines = prompt.split('\n');
-    const contextLines = lines.slice(-3).join('\n');
-    
-    // For simpler models, use a more direct approach
-    return contextLines;
+  private createCodePrompt(prompt: string): string {
+    return prompt.split('\n').slice(-3).join('\n');
   }
 
   private extractSuggestion(output: TextGenerationOutput[], originalPrompt: string): string {
     if (!output?.length || !output[0].generated_text) {
-      return '';
+        return '';
     }
 
-    let generatedText = output[0].generated_text.trim();
-    
-    // Take only the first line of the completion
-    const firstLine = generatedText.split('\n')[0]?.trim() || '';
-    
-    // Clean up the suggestion
-    let suggestion = firstLine;
-    
-    // Remove any markdown code blocks
-    const codeBlockMatch = suggestion.match(/```(?:\w+)?\s*(.*?)```/s);
-    if (codeBlockMatch) {
-      suggestion = codeBlockMatch[1].trim();
-    }
-    
-    // Limit length to prevent overly long completions
-    suggestion = suggestion.slice(0, 80);
-    
-    // Remove trailing incomplete tokens
-    suggestion = this.cleanupSuggestion(suggestion);
-    
-    // Don't suggest if it's too short or just whitespace
-    if (suggestion.length < 2 || !suggestion.trim()) {
-      return '';
-    }
-    
-    console.log(`[Agent] Final suggestion: "${suggestion}"`);
-    return suggestion;
-  }
+    let generatedText = output[0].generated_text;
 
-  private cleanupSuggestion(suggestion: string): string {
-    // Remove incomplete string literals
-    if ((suggestion.match(/"/g) || []).length % 2 !== 0) {
-      const lastQuote = suggestion.lastIndexOf('"');
-      if (lastQuote > 0) {
-        suggestion = suggestion.substring(0, lastQuote);
-      }
-    }
+    // The model includes the prompt in its output. We find the last instance
+    // of the prompt and take the text that comes after it.
+    const promptIndex = generatedText.lastIndexOf(originalPrompt);
+    let suggestion = (promptIndex === -1) 
+        ? generatedText 
+        : generatedText.slice(promptIndex + originalPrompt.length);
     
-    if ((suggestion.match(/'/g) || []).length % 2 !== 0) {
-      const lastQuote = suggestion.lastIndexOf("'");
-      if (lastQuote > 0) {
-        suggestion = suggestion.substring(0, lastQuote);
-      }
-    }
-    
-    // Remove incomplete parentheses, brackets, braces
-    const openChars = ['(', '[', '{'];
-    const closeChars = [')', ']', '}'];
-    
-    for (let i = 0; i < openChars.length; i++) {
-      const openCount = (suggestion.match(new RegExp('\\' + openChars[i], 'g')) || []).length;
-      const closeCount = (suggestion.match(new RegExp('\\' + closeChars[i], 'g')) || []).length;
-      
-      if (openCount > closeCount) {
-        const lastOpen = suggestion.lastIndexOf(openChars[i]);
-        if (lastOpen > 0) {
-          suggestion = suggestion.substring(0, lastOpen);
-        }
-      }
-    }
-    
-    return suggestion.trim();
+    // Clean up the suggestion by taking the first line and removing whitespace.
+    return suggestion.trim().split('\n')[0]?.trim().slice(0, 80) || '';
   }
 
   private sendMessage(message: AgentMessage): void {
