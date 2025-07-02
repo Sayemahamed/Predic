@@ -271,6 +271,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
       const textBeforeCursor = document.getText(
         new vscode.Range(new vscode.Position(startLine, 0), position)
       );
+      
 
       // Input #1: The content on the current line before the cursor
       const line = document.lineAt(position.line);
