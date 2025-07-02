@@ -105,9 +105,9 @@ class PredicAgent {
       progress_callback: (progress: any) => {
         if (progress.status === 'downloading') {
           const percent = Math.round(progress.progress || 0);
-          // console.log(`Downloading ${progress.file}: ${percent}%`);
+          console.log(`Downloading ${progress.file}: ${percent}%`);
         } else if (progress.status === 'done') {
-          // console.log(`Downloaded: ${progress.file}`);
+          console.log(`Downloaded: ${progress.file}`);
         }
       },
     });
