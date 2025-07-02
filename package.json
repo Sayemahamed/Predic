@@ -2,7 +2,9 @@
   "name": "predic",
   "displayName": "Predic",
   "description": "Your offline AI powered code completion extension",
-  "publisher": "",
+  "publisher": "duttaturja",
+  "license": "MIT",
+  "icon": "media/logo.png",
   "repository": {
     "type": "git",
     "url": "https://github.com/Sayemahamed/Predic.git"
@@ -12,7 +14,10 @@
     "vscode": "^1.100.0"
   },
   "categories": [
-    "Other"
+    "Programming Languages",
+    "AI",
+    "Machine Learning",
+    "Snippets"
   ],
   "activationEvents": [
     "onStartupFinished"
