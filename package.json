@@ -12,7 +12,10 @@
     "vscode": "^1.100.0"
   },
   "categories": [
-    "Other"
+    "Programming Languages",
+    "AI",
+    "Machine Learning",
+    "Snippets"
   ],
   "activationEvents": [
     "onStartupFinished"
