@@ -1,6 +1,7 @@
 node_modules/
 dist/
 uv.lock
+pnpm-lock.yaml
 
 # Dependencies
 package-lock.json
