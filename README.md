@@ -38,7 +38,7 @@
 
 ## 🛠️ How It Works
 
-Predic uses a modern, two-process architecture to ensure the VS Code UI remains fast and responsive.
+Predic employs a modern, two-process architecture to ensure that the VS Code UI remains snappy and responsive even while performing computationally intensive AI tasks.
 
 1.  **Extension Host:** The main extension (`extension.ts`) interacts with the VS Code API, captures your code context, and displays suggestions.
 2.  **Agent Process:** A separate Node.js process (`agent.ts`) is forked to handle the heavy lifting. This agent loads a quantized AI model using the amazing [Transformers.js](https://github.com/xenova/transformers.js) library and runs inference without blocking the main editor thread.
