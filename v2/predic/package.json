@@ -1,0 +1,185 @@
+{
+  "name": "predic",
+  "displayName": "Predic",
+  "description": "Offline AI coding assistant with local LLMs",
+  "version": "0.0.1",
+  "engines": {
+    "vscode": "^1.85.0"
+  },
+  "categories": [
+    "Programming Languages",
+    "Machine Learning",
+    "Other"
+  ],
+  "activationEvents": [],
+  "main": "./dist/extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "predic.openModelManager",
+        "title": "Manage Models",
+        "category": "Predic",
+        "icon": "$(cloud-download)"
+      },
+      {
+        "command": "predic.openChat",
+        "title": "Open Chat",
+        "category": "Predic",
+        "icon": "$(comment-discussion)"
+      },
+      {
+        "command": "predic.startServer",
+        "title": "Start Local Server",
+        "category": "Predic",
+        "icon": "$(play)"
+      },
+      {
+        "command": "predic.stopServer",
+        "title": "Stop Local Server",
+        "category": "Predic",
+        "icon": "$(stop)"
+      },
+      {
+        "command": "predic.refreshModels",
+        "title": "Refresh Models",
+        "category": "Predic",
+        "icon": "$(refresh)"
+      },
+      {
+        "command": "predic.downloadModel",
+        "title": "Download Model",
+        "category": "Predic"
+      },
+      {
+        "command": "predic.selectModel",
+        "title": "Select Model",
+        "category": "Predic"
+      },
+      {
+        "command": "predic.testConnection",
+        "title": "Test Server Connection",
+        "category": "Predic"
+      }
+    ],
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "predic",
+          "title": "Predic",
+          "icon": "$(hubot)"
+        }
+      ],
+      "panel": [
+        {
+          "id": "predic-chat",
+          "title": "Predic Chat",
+          "icon": "$(comment-discussion)"
+        }
+      ]
+    },
+    "views": {
+      "predic": [
+        {
+          "id": "predic.models",
+          "name": "Models",
+          "icon": "$(cloud-download)",
+          "contextualTitle": "Predic Models"
+        },
+        {
+          "id": "predic.server",
+          "name": "Server Status",
+          "icon": "$(server)",
+          "contextualTitle": "Server Status"
+        }
+      ],
+      "predic-chat": [
+        {
+          "id": "predic.chat",
+          "name": "AI Assistant",
+          "type": "webview",
+          "icon": "$(comment-discussion)"
+        }
+      ]
+    },
+    "configuration": {
+      "title": "Predic",
+      "properties": {
+        "predic.serverUrl": {
+          "type": "string",
+          "default": "http://localhost:8000",
+          "description": "URL of the Predic backend server"
+        },
+        "predic.autoStartServer": {
+          "type": "boolean",
+          "default": true,
+          "description": "Automatically start the backend server"
+        },
+        "predic.selectedModel": {
+          "type": "string",
+          "default": "",
+          "description": "Currently selected model"
+        }
+      },
+      "predic.backendPath": {
+        "type": "string",
+        "default": "",
+        "description": "Path to the Predic backend directory (leave empty to auto-detect)"
+      }
+    },
+    "menus": {
+      "view/title": [
+        {
+          "command": "predic.refreshModels",
+          "when": "view == predic.models",
+          "group": "navigation"
+        },
+        {
+          "command": "predic.openModelManager",
+          "when": "view == predic.models",
+          "group": "navigation"
+        }
+      ],
+      "view/item/context": [
+        {
+          "command": "predic.downloadModel",
+          "when": "view == predic.models && viewItem == available",
+          "group": "inline"
+        },
+        {
+          "command": "predic.selectModel",
+          "when": "view == predic.models && viewItem == ready",
+          "group": "inline"
+        }
+      ]
+    }
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run package",
+    "compile": "webpack",
+    "watch": "webpack --watch",
+    "package": "webpack --mode production --devtool hidden-source-map",
+    "compile-tests": "tsc -p . --outDir out",
+    "watch-tests": "tsc -p . -w --outDir out",
+    "pretest": "npm run compile-tests && npm run compile && npm run lint",
+    "lint": "eslint src --ext ts",
+    "test": "vscode-test"
+  },
+  "devDependencies": {
+    "@types/mocha": "^10.0.6",
+    "@types/node": "18.x",
+    "@types/vscode": "^1.85.0",
+    "@typescript-eslint/eslint-plugin": "^6.15.0",
+    "@typescript-eslint/parser": "^6.15.0",
+    "@vscode/test-cli": "^0.0.4",
+    "@vscode/test-electron": "^2.3.8",
+    "eslint": "^8.56.0",
+    "ts-loader": "^9.5.1",
+    "typescript": "^5.3.3",
+    "webpack": "^5.89.0",
+    "webpack-cli": "^5.1.4"
+  },
+  "dependencies": {
+    "@vscode/codicons": "^0.0.40",
+    "axios": "^1.6.5"
+  }
+}
