@@ -1,0 +1,118 @@
+body {
+    margin: 0;
+    padding: 20px;
+    font-family: var(--vscode-font-family);
+    font-size: var(--vscode-font-size);
+    color: var(--vscode-foreground);
+    background-color: var(--vscode-editor-background);
+}
+
+.container {
+    max-width: 800px;
+    margin: 0 auto;
+}
+
+h1 {
+    color: var(--vscode-foreground);
+    margin-bottom: 20px;
+}
+
+.toolbar {
+    margin-bottom: 20px;
+}
+
+button {
+    padding: 8px 16px;
+    background-color: var(--vscode-button-background);
+    color: var(--vscode-button-foreground);
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    margin-right: 10px;
+}
+
+button:hover {
+    background-color: var(--vscode-button-hoverBackground);
+}
+
+button:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.model-list {
+    display: grid;
+    gap: 15px;
+}
+
+.model-card {
+    padding: 20px;
+    background-color: var(--vscode-editor-inactiveSelectionBackground);
+    border: 1px solid var(--vscode-panel-border);
+    border-radius: 8px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.model-card.selected {
+    border-color: var(--vscode-focusBorder);
+    background-color: var(--vscode-list-activeSelectionBackground);
+}
+
+.model-info h3 {
+    margin: 0 0 10px 0;
+    color: var(--vscode-textLink-foreground);
+}
+
+.model-info p {
+    margin: 5px 0;
+    color: var(--vscode-descriptionForeground);
+}
+
+.model-actions {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+}
+
+.progress-bar {
+    width: 200px;
+    height: 20px;
+    background-color: var(--vscode-input-background);
+    border-radius: 10px;
+    overflow: hidden;
+}
+
+.progress-fill {
+    height: 100%;
+    background-color: var(--vscode-progressBar-background);
+    transition: width 0.3s ease;
+}
+
+.status-badge {
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 12px;
+    font-weight: bold;
+}
+
+.status-badge.available {
+    background-color: var(--vscode-editorInfo-background);
+    color: var(--vscode-editorInfo-foreground);
+}
+
+.status-badge.downloading {
+    background-color: var(--vscode-editorWarning-background);
+    color: var(--vscode-editorWarning-foreground);
+}
+
+.status-badge.ready {
+    background-color: var(--vscode-testing-iconPassed);
+    color: white;
+}
+
+.status-badge.error {
+    background-color: var(--vscode-editorError-background);
+    color: var(--vscode-editorError-foreground);
+}
