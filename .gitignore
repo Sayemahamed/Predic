@@ -6,3 +6,18 @@ pnpm-lock.yaml
 # Dependencies
 package-lock.json
 bun.lock
+
+*.pyc
+.venv/
+*/__pycache__/*
+*.onnx
+*.pyo
+*.pt
+*.pth
+*.pytorch_model.bin
+*.parquet
+*.safetensors
+*.bin
+*.ckpt
+*.lock
+*.mdb
