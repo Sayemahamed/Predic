@@ -93,7 +93,4 @@
                 break;
         }
     });
-
-    // *** FIX: Tell the extension we are ready to receive models ***
-    vscode.postMessage({ type: 'webviewReady' });
 })();

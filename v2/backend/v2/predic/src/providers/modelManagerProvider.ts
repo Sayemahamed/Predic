@@ -20,8 +20,6 @@ export class ModelManagerProvider {
 
         if (this.panel) {
             this.panel.reveal(column);
-            // Refresh models if the panel is just being re-focused
-            await this.refreshModels(); 
             return;
         }
 
@@ -40,10 +38,6 @@ export class ModelManagerProvider {
         this.panel.webview.onDidReceiveMessage(
             async message => {
                 switch (message.type) {
-                    // *** FIX: Listen for 'webviewReady' ***
-                    case 'webviewReady':
-                        await this.refreshModels();
-                        break;
                     case 'downloadModel':
                         await this.handleDownloadModel(message.modelId);
                         break;
@@ -67,7 +61,8 @@ export class ModelManagerProvider {
             this.context.subscriptions
         );
 
-        // *** We no longer call refreshModels() here ***
+        // Load initial models
+        await this.refreshModels();
     }
 
     private async handleDownloadModel(modelId: string) {
@@ -143,13 +138,9 @@ export class ModelManagerProvider {
         const styleUri = webview.asWebviewUri(
             vscode.Uri.joinPath(this.extensionUri, 'media', 'modelManager.css')
         );
-        
-        // Add cache-busting query to script URI
         const scriptUri = webview.asWebviewUri(
             vscode.Uri.joinPath(this.extensionUri, 'media', 'modelManager.js')
         );
-        const scriptUriWithNonce = scriptUri.with({ query: `nonce=${Date.now()}` });
-
 
         return `<!DOCTYPE html>
         <html lang="en">
@@ -167,7 +158,7 @@ export class ModelManagerProvider {
                 </div>
                 <div id="modelList" class="model-list"></div>
             </div>
-            <script src="${scriptUriWithNonce}"></script>
+            <script src="${scriptUri}"></script>
         </body>
         </html>`;
     }
