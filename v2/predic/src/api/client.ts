@@ -1,79 +1,39 @@
-import axios, { AxiosInstance } from 'axios';
+import axios from 'axios';
 import * as vscode from 'vscode';
-import { Model, CompletionRequest, ChatRequest, ChatMessage } from '../types';
 
 export class PredicAPIClient {
-    private client: AxiosInstance;
-    private serverUrl: string;
-
-    constructor() {
+    private get baseUrl(): string {
         const config = vscode.workspace.getConfiguration('predic');
-        this.serverUrl = config.get('serverUrl', 'http://localhost:8000');
-        
-        this.client = axios.create({
-            baseURL: this.serverUrl,
-            timeout: 30000,
-            headers: {
-                'Content-Type': 'application/json',
-            },
-        });
+        const port = config.get<number>('port') || 5001;
+        return `http://localhost:${port}`;
     }
 
     async checkHealth(): Promise<boolean> {
         try {
-            const response = await this.client.get('/health');
-            return response.status === 200;
+            await axios.get(`${this.baseUrl}/api/extra/version`, { timeout: 2000 });
+            return true;
         } catch (error) {
             return false;
         }
     }
 
-    async getAvailableModels(): Promise<Model[]> {
-        try {
-            const response = await this.client.get('/api/models/available');
-            return response.data.models;
-        } catch (error) {
-            console.error('Failed to fetch models:', error);
-            throw error;
-        }
+    async chat(messages: any[]) {
+        // KoboldCpp OpenAI-compatible endpoint
+        return await axios.post(`${this.baseUrl}/v1/chat/completions`, {
+            messages: messages,
+            model: "koboldcpp", // Name doesn't matter for local
+            max_tokens: 2048,
+            stream: false 
+        });
     }
 
-    async downloadModel(modelId: string): Promise<void> {
-        try {
-            await this.client.post(`/api/models/download/${modelId}`);
-        } catch (error) {
-            console.error('Failed to download model:', error);
-            throw error;
-        }
-    }
-
-    async getModelStatus(modelId: string): Promise<any> {
-        try {
-            const response = await this.client.get(`/api/models/status/${modelId}`);
-            return response.data;
-        } catch (error) {
-            console.error('Failed to get model status:', error);
-            throw error;
-        }
-    }
-
-    async generateCompletion(request: CompletionRequest): Promise<string> {
-        try {
-            const response = await this.client.post('/api/completion/', request);
-            return response.data.completion;
-        } catch (error) {
-            console.error('Failed to generate completion:', error);
-            throw error;
-        }
-    }
-
-    async chat(request: ChatRequest): Promise<ChatMessage> {
-        try {
-            const response = await this.client.post('/api/chat/', request);
-            return response.data.message;
-        } catch (error) {
-            console.error('Failed to send chat message:', error);
-            throw error;
-        }
+    async completion(prompt: string) {
+        const response = await axios.post(`${this.baseUrl}/v1/completions`, {
+            prompt: prompt,
+            max_tokens: 50,
+            stop: ["\n"],
+            temperature: 0.2
+        });
+        return response.data.choices[0].text;
     }
 }

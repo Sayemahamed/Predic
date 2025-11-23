@@ -104,26 +104,31 @@
     "configuration": {
       "title": "Predic",
       "properties": {
-        "predic.serverUrl": {
-          "type": "string",
-          "default": "http://localhost:8000",
-          "description": "URL of the Predic backend server"
-        },
-        "predic.autoStartServer": {
-          "type": "boolean",
-          "default": true,
-          "description": "Automatically start the backend server"
-        },
-        "predic.selectedModel": {
+        "predic.koboldCppPath": {
           "type": "string",
           "default": "",
-          "description": "Currently selected model"
+          "description": "Path to the koboldcpp executable (e.g., ../koboldcpp.exe)"
+        },
+        "predic.modelPath": {
+          "type": "string",
+          "default": "",
+          "description": "Path to the GGUF model file (e.g., ../models/qwen2.5-coder.gguf)"
+        },
+        "predic.port": {
+          "type": "number",
+          "default": 5001,
+          "description": "Port to run the KoboldCpp server on"
+        },
+        "predic.gpuLayers": {
+          "type": "number",
+          "default": -1,
+          "description": "Number of layers to offload to GPU (-1 for auto)"
+        },
+        "predic.contextSize": {
+          "type": "number",
+          "default": 8192,
+          "description": "Context size for the model"
         }
-      },
-      "predic.backendPath": {
-        "type": "string",
-        "default": "",
-        "description": "Path to the Predic backend directory (leave empty to auto-detect)"
       }
     },
     "menus": {
