@@ -26,19 +26,17 @@ export class ServerManager {
 
         const config = vscode.workspace.getConfiguration('predic');
         
-        // Resolve Paths (Auto-detect if not set)
         let exePath = config.get<string>('koboldCppPath');
         let modelPath = config.get<string>('modelPath');
         const port = config.get<number>('port') || 5001;
-        const gpuLayers = config.get<number>('gpuLayers') || -1;
+        const gpuLayers = config.get<number>('gpuLayers'); // Don't force default here, handle below
         const contextSize = config.get<number>('contextSize') || 8192;
 
-        // Auto-resolve relative paths for development convenience
+        // Path resolution logic (same as before)
         if (!exePath || !modelPath) {
-            const workspaceRoot = vscode.workspace.workspaceFolders?.[0].uri.fsPath || '';
-            // Assuming v2 structure: workspace/koboldcpp.exe
-            if (!exePath) exePath = path.join(workspaceRoot, '..', 'koboldcpp.exe'); 
-            if (!modelPath) modelPath = path.join(workspaceRoot, '..', 'models', 'qwen2.5-coder-0.5B-Instruct-q4_k_m.gguf');
+            const extensionRoot = this.context.extensionUri.fsPath;
+            if (!exePath) exePath = path.join(extensionRoot, '..', 'koboldcpp.exe');
+            if (!modelPath) modelPath = path.join(extensionRoot, '..', 'models', 'qwen2.5-coder-0.5B-Instruct-q4_k_m.gguf');
         }
 
         if (!fs.existsSync(exePath)) {
@@ -47,38 +45,39 @@ export class ServerManager {
             return false;
         }
 
-        if (!fs.existsSync(modelPath)) {
-            vscode.window.showErrorMessage(`Model file not found at: ${modelPath}`);
-            this.isStarting = false;
-            return false;
-        }
-
-        // Spawn the Process
+        // Construct Arguments matching your working manual command
         const args = [
             '--model', modelPath,
             '--port', port.toString(),
-            '--gpulayers', gpuLayers.toString(),
             '--contextsize', contextSize.toString(),
-            '--usecublas', // Enable CUDA if available
             '--smartcontext' 
         ];
 
-        this.outputChannel.appendLine(`Executing: ${exePath} ${args.join(' ')}`);
+        // Only add GPU layers if explicitly set to a positive number
+        // We avoid sending '-1' (auto) because it crashed your specific setup
+        if (gpuLayers && gpuLayers > 0) {
+            args.push('--gpulayers', gpuLayers.toString());
+        }
+
+        this.outputChannel.appendLine(`Executing: "${exePath}" ${args.join(' ')}`);
 
         try {
-            this.serverProcess = spawn(exePath, args);
+            this.serverProcess = spawn(exePath, args, {
+                cwd: path.dirname(exePath)
+            });
 
             this.serverProcess.stdout?.on('data', (data) => {
                 const msg = data.toString();
                 this.outputChannel.append(msg);
-                // KoboldCpp prints this when ready
-                if (msg.includes('HTTP server is listening')) { 
+                if (msg.includes('HTTP server is listening') || msg.includes('network mode')) { 
                     this.isStarting = false;
                     vscode.window.showInformationMessage('Predic (KoboldCpp) Started!');
                 }
             });
 
-            this.serverProcess.stderr?.on('data', (data) => this.outputChannel.append(`ERR: ${data.toString()}`));
+            this.serverProcess.stderr?.on('data', (data) => {
+                this.outputChannel.append(`LOG: ${data.toString()}`);
+            });
             
             this.serverProcess.on('close', (code) => {
                 this.outputChannel.appendLine(`Server stopped with code ${code}`);
@@ -86,20 +85,20 @@ export class ServerManager {
                 this.isStarting = false;
             });
 
-            // Wait a bit for startup
             return await this.waitForServer();
 
-        } catch (err) {
-            vscode.window.showErrorMessage(`Failed to spawn KoboldCpp: ${err}`);
+        } catch (err: any) {
+            vscode.window.showErrorMessage(`Failed to spawn KoboldCpp: ${err.message}`);
             this.isStarting = false;
             return false;
         }
     }
-
+    
     async stop() {
         if (this.serverProcess) {
             this.serverProcess.kill();
             this.serverProcess = null;
+            this.outputChannel.appendLine('Server killed manually.');
         }
     }
 
@@ -108,6 +107,7 @@ export class ServerManager {
             if (await this.apiClient.checkHealth()) return true;
             await new Promise(r => setTimeout(r, 1000));
         }
+        this.outputChannel.appendLine('Timed out waiting for server health check.');
         return false;
     }
 }

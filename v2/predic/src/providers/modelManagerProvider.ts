@@ -143,10 +143,16 @@ export class ModelManagerProvider {
         const fileName = path.basename(model.url);
         const fullPath = path.join(modelsDir, fileName);
 
-        // Update VS Code settings to point to this model
+        // 1. Update VS Code settings
         await vscode.workspace.getConfiguration('predic').update('modelPath', fullPath, vscode.ConfigurationTarget.Global);
         
-        vscode.window.showInformationMessage(`Selected ${model.name}. Please restart the server to apply changes.`);
+        // 2. Trigger Programmatic Restart
+        vscode.commands.executeCommand('predic.restartServer');
+        
+        vscode.window.showInformationMessage(`Switched to ${model.name}`);
+        
+        // 3. Refresh list to show new active status
+        this.refreshModels(); 
     }
 
     private _getHtmlForWebview(webview: vscode.Webview): string {
