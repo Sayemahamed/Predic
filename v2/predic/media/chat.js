@@ -1,57 +1,60 @@
 const vscode = acquireVsCodeApi();
 
+// Elements
 const chatContainer = document.getElementById('chat-container');
 const messageInput = document.getElementById('message-input');
 const sendButton = document.getElementById('send-button');
 const attachButton = document.getElementById('attach-button');
-const contextIndicator = document.getElementById('context-indicator');
-const contextFilename = document.getElementById('context-filename');
+const contextBar = document.getElementById('context-bar');
+const typingIndicator = document.getElementById('typing-indicator');
 
-// --- SVGs for Buttons (Reliable!) ---
+// Icons (Lucide Style)
 const ICONS = {
-    copy: `<svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor"><path d="M4 4H12V12H4V4Z M3 3V13H13V3H3Z M1 1V10H2V2H10V1H1Z"/></svg>`,
-    check: `<svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor"><path d="M13.854 3.646a.5.5 0 0 1 0 .708l-7 7a.5.5 0 0 1-.708 0l-3.5-3.5a.5.5 0 1 1 .708-.708L6.5 10.293l6.646-6.647a.5.5 0 0 1 .708 0z"/></svg>`,
-    close: `<svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor"><path d="M4.646 4.646a.5.5 0 0 1 .708 0L8 7.293l2.646-2.647a.5.5 0 0 1 .708.708L8.707 8l2.647 2.646a.5.5 0 0 1-.708.708L8 8.707l-2.646 2.647a.5.5 0 0 1-.708-.708L7.293 8 4.646 5.354a.5.5 0 0 1 0-.708z"/></svg>`
+    copy: `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>`,
+    check: `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>`,
+    insert: `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 11 12 14 22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>`,
+    close: `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>`,
+    file: `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14 2 14 8 20 8"/></svg>`
 };
 
+// --- Handlers ---
 window.addEventListener('message', event => {
-    const message = event.data;
-    switch (message.type) {
+    const msg = event.data;
+    switch (msg.type) {
         case 'addMessage':
-            addMessageToUI(message.role, message.content);
+            // Remove welcome message on first chat
+            const welcome = document.querySelector('.welcome-message');
+            if (welcome) welcome.remove();
+            addMessageToUI(msg.role, msg.content);
             break;
         case 'fileAttached':
-            showContext(message.fileName);
+            addContextChip(msg.fileName);
             break;
         case 'clearContext':
-            hideContext();
+            contextBar.innerHTML = '';
+            contextBar.classList.add('hidden');
+            break;
+        case 'setLoading':
+            if (msg.value) typingIndicator.classList.remove('hidden');
+            else typingIndicator.classList.add('hidden');
             break;
     }
 });
 
 function sendMessage() {
     const text = messageInput.value.trim();
-    if (text) {
-        vscode.postMessage({ type: 'sendMessage', value: text });
-        messageInput.value = '';
-    }
+    if (!text) return;
+    
+    vscode.postMessage({ type: 'sendMessage', value: text });
+    messageInput.value = '';
+    messageInput.style.height = 'auto'; // Reset height
 }
 
-attachButton.addEventListener('click', () => {
-    vscode.postMessage({ type: 'attachFile' });
+// Auto-resize textarea
+messageInput.addEventListener('input', function() {
+    this.style.height = 'auto';
+    this.style.height = (this.scrollHeight) + 'px';
 });
-
-function showContext(name) {
-    contextFilename.textContent = name;
-    contextIndicator.classList.remove('hidden');
-}
-
-function hideContext() {
-    contextIndicator.classList.add('hidden');
-    contextFilename.textContent = '';
-}
-
-sendButton.addEventListener('click', sendMessage);
 
 messageInput.addEventListener('keydown', (e) => {
     if (e.key === 'Enter' && !e.shiftKey) {
@@ -60,33 +63,48 @@ messageInput.addEventListener('keydown', (e) => {
     }
 });
 
+attachButton.addEventListener('click', () => {
+    vscode.postMessage({ type: 'attachFile' });
+});
+
+sendButton.addEventListener('click', sendMessage);
+
+// --- UI Builders ---
+
+function addContextChip(name) {
+    contextBar.classList.remove('hidden');
+    const chip = document.createElement('div');
+    chip.className = 'context-chip';
+    chip.innerHTML = `${ICONS.file} <span>${name}</span>`;
+    contextBar.appendChild(chip);
+}
+
 function addMessageToUI(role, content) {
-    const messageDiv = document.createElement('div');
-    messageDiv.className = `message ${role}`;
+    const div = document.createElement('div');
+    div.className = `message ${role}`;
     
+    // Parse Code Blocks
     const parts = content.split(/```(\w*)\n([\s\S]*?)```/g);
     
-    for (let i = 0; i < parts.length; i++) {
-        const part = parts[i];
-        if (i % 3 === 0) {
+    parts.forEach((part, index) => {
+        if (index % 3 === 0) {
             if (part.trim()) {
                 const p = document.createElement('div');
-                p.className = 'markdown-text';
-                p.innerText = part; 
-                messageDiv.appendChild(p);
+                p.innerHTML = formatMarkdown(part); // Simple bold/italic
+                div.appendChild(p);
             }
-        } else if (i % 3 === 1) {
-            // language capture
-        } else {
-            const lang = parts[i-1] || 'text';
-            const codeBlock = createCodeBlock(part, lang);
-            messageDiv.appendChild(codeBlock);
+        } else if (index % 3 === 2) {
+            const lang = parts[index-1] || 'text';
+            div.appendChild(createCodeBlock(part, lang));
         }
-    }
-    
-    if (parts.length === 1) messageDiv.innerText = content;
+    });
 
-    chatContainer.appendChild(messageDiv);
+    // Fallback for plain text
+    if (parts.length === 1) {
+        div.innerHTML = formatMarkdown(content);
+    }
+
+    chatContainer.appendChild(div);
     chatContainer.scrollTop = chatContainer.scrollHeight;
 }
 
@@ -96,30 +114,25 @@ function createCodeBlock(code, lang) {
 
     const header = document.createElement('div');
     header.className = 'code-header';
-    
-    const langLabel = document.createElement('span');
-    langLabel.className = 'lang-label';
-    langLabel.textContent = lang;
+    header.innerHTML = `<span class="lang-label">${lang}</span>`;
 
     const actions = document.createElement('div');
     actions.className = 'code-actions';
 
-    const btnCopy = createActionButton('copy', 'Copy', () => {
+    // Copy Button
+    const copyBtn = createBtn('Copy', ICONS.copy, () => {
         navigator.clipboard.writeText(code);
-        btnCopy.innerHTML = ICONS.check;
-        setTimeout(() => btnCopy.innerHTML = ICONS.copy, 2000);
+        copyBtn.innerHTML = `${ICONS.check} <span>Copied</span>`;
+        setTimeout(() => copyBtn.innerHTML = `${ICONS.copy} <span>Copy</span>`, 2000);
     });
 
-    const btnAccept = createActionButton('check', 'Accept', () => {
+    // Insert Button
+    const insertBtn = createBtn('Insert', ICONS.insert, () => {
         vscode.postMessage({ type: 'insertCode', value: code });
     });
 
-    const btnReject = createActionButton('close', 'Reject', () => {
-        container.remove();
-    });
-
-    actions.append(btnCopy, btnAccept, btnReject);
-    header.append(langLabel, actions);
+    actions.append(copyBtn, insertBtn);
+    header.appendChild(actions);
 
     const pre = document.createElement('pre');
     const codeEl = document.createElement('code');
@@ -130,11 +143,18 @@ function createCodeBlock(code, lang) {
     return container;
 }
 
-function createActionButton(iconKey, title, onClick) {
+function createBtn(label, icon, onClick) {
     const btn = document.createElement('button');
-    btn.className = 'code-action-btn';
-    btn.title = title;
-    btn.innerHTML = ICONS[iconKey];
+    btn.className = 'action-btn';
+    btn.title = label;
+    btn.innerHTML = `${icon} <span>${label}</span>`; // Text label for clarity
     btn.addEventListener('click', onClick);
     return btn;
+}
+
+function formatMarkdown(text) {
+    // Basic formatting for bold and inline code
+    return text
+        .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+        .replace(/`([^`]+)`/g, '<code>$1</code>');
 }

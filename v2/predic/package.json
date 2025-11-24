@@ -52,7 +52,7 @@
         {
           "id": "predic-sidebar",
           "title": "Predic",
-          "icon": "media/logo.png"
+          "icon": "./v2/predic/media/icon.svg"
         }
       ]
     },
