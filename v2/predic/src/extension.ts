@@ -7,45 +7,58 @@ import { ModelManagerProvider } from './providers/modelManagerProvider';
 export async function activate(context: vscode.ExtensionContext) {
     const serverManager = new ServerManager(context);
     
-    // 1. Register Providers
+    // Providers
     const chatProvider = new ChatViewProvider(context.extensionUri);
     const modelManagerProvider = new ModelManagerProvider(context.extensionUri, context);
     const inlineProvider = new PredicInlineCompletionProvider();
 
-    // 2. Register Views
+    // Register View
     context.subscriptions.push(
         vscode.window.registerWebviewViewProvider("predic.chatView", chatProvider)
     );
 
-    // 3. Register Commands
+    // Commands
     context.subscriptions.push(
-        vscode.commands.registerCommand('predic.openModelManager', () => {
-            modelManagerProvider.show();
-        }),
+        // Basic
+        vscode.commands.registerCommand('predic.openModelManager', () => modelManagerProvider.show()),
         vscode.commands.registerCommand('predic.startServer', () => serverManager.start()),
         vscode.commands.registerCommand('predic.stopServer', () => serverManager.stop()),
+        
+        // Smart Actions
+        vscode.commands.registerCommand('predic.explainCode', () => {
+            const editor = vscode.window.activeTextEditor;
+            if (editor && !editor.selection.isEmpty) {
+                const code = editor.document.getText(editor.selection);
+                chatProvider.triggerAnalysis("Explain this code snippet in detail.", code);
+            } else {
+                vscode.window.showInformationMessage("Please select some code first.");
+            }
+        }),
+        
+        vscode.commands.registerCommand('predic.fixCode', () => {
+            const editor = vscode.window.activeTextEditor;
+            if (editor) {
+                const code = editor.selection.isEmpty 
+                    ? editor.document.getText() 
+                    : editor.document.getText(editor.selection);
+                
+                chatProvider.triggerAnalysis("Find and fix any errors in this code. Return the fixed code block.", code);
+            }
+        }),
+
         vscode.commands.registerCommand('predic.restartServer', async () => {
-            await vscode.window.withProgress({
-                location: vscode.ProgressLocation.Notification,
-                title: "Restarting Predic Server...",
-                cancellable: false
-            }, async () => {
-                await serverManager.stop();
-                await new Promise(resolve => setTimeout(resolve, 1000)); 
-                await serverManager.start();
-            });
+             // ... existing restart logic ...
+             await serverManager.stop();
+             await new Promise(r => setTimeout(r, 1000));
+             await serverManager.start();
         })
     );
 
-    // 4. Register Inline Completion
+    // Inline Completion
     context.subscriptions.push(
-        vscode.languages.registerInlineCompletionItemProvider(
-            { pattern: "**" }, 
-            inlineProvider
-        )
+        vscode.languages.registerInlineCompletionItemProvider({ pattern: "**" }, inlineProvider)
     );
 
-    // Auto-start
     await serverManager.start();
 }
 

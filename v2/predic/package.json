@@ -2,15 +2,10 @@
   "name": "predic",
   "displayName": "Predic",
   "description": "Offline AI coding assistant with local LLMs",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "engines": {
     "vscode": "^1.85.0"
   },
-  "categories": [
-    "Programming Languages",
-    "Machine Learning",
-    "Other"
-  ],
   "activationEvents": [
     "onStartupFinished"
   ],
@@ -40,6 +35,16 @@
         "title": "Restart Server",
         "category": "Predic",
         "icon": "$(refresh)"
+      },
+      {
+        "command": "predic.explainCode",
+        "title": "Predic: Explain Selection",
+        "category": "Predic"
+      },
+      {
+        "command": "predic.fixCode",
+        "title": "Predic: Fix Error",
+        "category": "Predic"
       }
     ],
     "viewsContainers": {
@@ -47,7 +52,7 @@
         {
           "id": "predic-sidebar",
           "title": "Predic",
-          "icon": "media/logo.svg"
+          "icon": "media/logo.png"
         }
       ]
     },
@@ -68,7 +73,7 @@
         "predic.koboldCppPath": {
           "type": "string",
           "default": "",
-          "description": "Path to the koboldcpp executable (e.g., koboldcpp.exe)"
+          "description": "Path to the koboldcpp executable"
         },
         "predic.modelDir": {
           "type": "string",
@@ -104,6 +109,17 @@
           "when": "view == predic.chatView",
           "group": "navigation",
           "title": "Settings & Models"
+        }
+      ],
+      "editor/context": [
+        {
+          "command": "predic.explainCode",
+          "group": "predic-group@1",
+          "when": "editorHasSelection"
+        },
+        {
+          "command": "predic.fixCode",
+          "group": "predic-group@2"
         }
       ]
     }
