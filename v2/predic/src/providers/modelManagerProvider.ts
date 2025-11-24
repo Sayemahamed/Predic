@@ -2,28 +2,9 @@ import * as vscode from 'vscode';
 import * as fs from 'fs';
 import * as path from 'path';
 import * as https from 'https';
-import { Model } from '../types';
 
 export class ModelManagerProvider {
     private panel: vscode.WebviewPanel | undefined;
-    
-    // Define curated models with their URLs
-    private availableModels: Model[] = [
-        {
-            id: 'qwen2.5-coder-0.5b',
-            name: 'Qwen 2.5 Coder (0.5B)',
-            size: '0.5 GB',
-            status: 'missing',
-            url: 'https://huggingface.co/Qwen/Qwen2.5-Coder-0.5B-Instruct-GGUF/resolve/main/qwen2.5-coder-0.5b-instruct-q4_k_m.gguf'
-        },
-        {
-            id: 'deepseek-coder-1.3b',
-            name: 'DeepSeek Coder (1.3B)',
-            size: '1.3 GB',
-            status: 'missing',
-            url: 'https://huggingface.co/TheBloke/deepseek-coder-1.3b-instruct-GGUF/resolve/main/deepseek-coder-1.3b-instruct.Q4_K_M.gguf'
-        }
-    ];
 
     constructor(
         private readonly extensionUri: vscode.Uri,
@@ -31,145 +12,144 @@ export class ModelManagerProvider {
     ) {}
 
     public async show() {
-        const column = vscode.window.activeTextEditor ? vscode.window.activeTextEditor.viewColumn : undefined;
         if (this.panel) {
-            this.panel.reveal(column);
+            this.panel.reveal();
             return;
         }
 
-        this.panel = vscode.window.createWebviewPanel('predicModelManager', 'Predic Models', column || vscode.ViewColumn.One, {
-            enableScripts: true,
-            localResourceRoots: [this.extensionUri]
-        });
+        this.panel = vscode.window.createWebviewPanel(
+            'predicDashboard',
+            'Predic Dashboard',
+            vscode.ViewColumn.One,
+            {
+                enableScripts: true,
+                localResourceRoots: [this.extensionUri]
+            }
+        );
 
         this.panel.webview.html = this._getHtmlForWebview(this.panel.webview);
         
         this.panel.webview.onDidReceiveMessage(async message => {
             switch (message.type) {
-                case 'webviewReady':
-                case 'refreshModels':
-                    await this.refreshModels();
+                case 'refresh':
+                    await this.refreshState();
                     break;
-                case 'downloadModel':
-                    await this.downloadModel(message.modelId);
+                case 'selectPath':
+                    await this.handlePathSelection(message.target);
                     break;
-                case 'selectModel':
-                    await this.selectModel(message.modelId);
+                case 'setActiveModel':
+                    await this.setActiveModel(message.path);
+                    break;
+                case 'downloadEngine':
+                    // You can implement the engine downloader here later
+                    vscode.window.showInformationMessage("Engine download not yet implemented in this snippet.");
                     break;
             }
         });
 
         this.panel.onDidDispose(() => { this.panel = undefined; });
-    }
-
-    private getModelsDirectory(): string {
-        // Assuming v2 structure: workspace/models
-        // Adjust this path logic based on where you want to store models
-        const workspaceRoot = vscode.workspace.workspaceFolders?.[0].uri.fsPath;
-        return workspaceRoot ? path.join(workspaceRoot, '..', 'models') : '';
-    }
-
-    private async refreshModels() {
-        const modelsDir = this.getModelsDirectory();
-        if (!modelsDir || !fs.existsSync(modelsDir)) {
-            // Send curated list with 'missing' status
-            this.panel?.webview.postMessage({ type: 'updateModels', models: this.availableModels });
-            return;
-        }
-
-        const files = fs.readdirSync(modelsDir);
         
-        // Update status based on files on disk
-        const updatedModels = this.availableModels.map(model => {
-            const fileName = path.basename(model.url || '');
-            const exists = files.includes(fileName);
-            return { ...model, status: exists ? 'ready' : 'missing' };
+        // Initial load
+        await this.refreshState();
+    }
+
+    private async handlePathSelection(target: 'koboldCppPath' | 'modelDir') {
+        const isFile = target === 'koboldCppPath';
+        const uris = await vscode.window.showOpenDialog({
+            canSelectFiles: isFile,
+            canSelectFolders: !isFile,
+            canSelectMany: false,
+            title: isFile ? "Select KoboldCpp Executable" : "Select Models Directory"
         });
 
-        this.panel?.webview.postMessage({ type: 'updateModels', models: updatedModels });
-    }
-
-    private async downloadModel(modelId: string) {
-        const model = this.availableModels.find(m => m.id === modelId);
-        if (!model || !model.url) return;
-
-        const modelsDir = this.getModelsDirectory();
-        if (!fs.existsSync(modelsDir)) {
-            fs.mkdirSync(modelsDir, { recursive: true });
+        if (uris && uris[0]) {
+            await vscode.workspace.getConfiguration('predic').update(target, uris[0].fsPath, vscode.ConfigurationTarget.Global);
+            await this.refreshState();
         }
-
-        const fileName = path.basename(model.url);
-        const destPath = path.join(modelsDir, fileName);
-
-        vscode.window.withProgress({
-            location: vscode.ProgressLocation.Notification,
-            title: `Downloading ${model.name}...`,
-            cancellable: false
-        }, async (progress) => {
-            return new Promise<void>((resolve, reject) => {
-                const file = fs.createWriteStream(destPath);
-                https.get(model.url!, (response) => {
-                    const totalLen = parseInt(response.headers['content-length'] || '0');
-                    let curLen = 0;
-
-                    response.pipe(file);
-                    
-                    response.on('data', (chunk) => {
-                        curLen += chunk.length;
-                        const percentage = Math.round((curLen / totalLen) * 100);
-                        progress.report({ message: `${percentage}%` });
-                    });
-
-                    file.on('finish', () => {
-                        file.close();
-                        vscode.window.showInformationMessage(`${model.name} downloaded successfully!`);
-                        this.refreshModels();
-                        resolve();
-                    });
-                }).on('error', (err) => {
-                    fs.unlink(destPath, () => {}); // Delete partial file
-                    vscode.window.showErrorMessage(`Download failed: ${err.message}`);
-                    reject(err);
-                });
-            });
-        });
     }
 
-    private async selectModel(modelId: string) {
-        const model = this.availableModels.find(m => m.id === modelId);
-        if(!model || !model.url) return;
-        
-        const modelsDir = this.getModelsDirectory();
-        const fileName = path.basename(model.url);
-        const fullPath = path.join(modelsDir, fileName);
-
-        // 1. Update VS Code settings
-        await vscode.workspace.getConfiguration('predic').update('modelPath', fullPath, vscode.ConfigurationTarget.Global);
-        
-        // 2. Trigger Programmatic Restart
+    private async setActiveModel(modelPath: string) {
+        await vscode.workspace.getConfiguration('predic').update('modelPath', modelPath, vscode.ConfigurationTarget.Global);
         vscode.commands.executeCommand('predic.restartServer');
-        
-        vscode.window.showInformationMessage(`Switched to ${model.name}`);
-        
-        // 3. Refresh list to show new active status
-        this.refreshModels(); 
+        vscode.window.showInformationMessage(`Switched model. Restarting server...`);
+        await this.refreshState();
+    }
+
+    private async refreshState() {
+        if (!this.panel) return;
+
+        const config = vscode.workspace.getConfiguration('predic');
+        const modelDir = config.get<string>('modelDir') || path.join(this.context.extensionUri.fsPath, '..', 'models');
+        const activeModel = config.get<string>('modelPath') || '';
+        const koboldPath = config.get<string>('koboldCppPath') || '';
+
+        let models: any[] = [];
+
+        if (fs.existsSync(modelDir)) {
+            models = fs.readdirSync(modelDir)
+                .filter(f => f.endsWith('.gguf'))
+                .map(f => {
+                    const fullPath = path.join(modelDir, f);
+                    return {
+                        name: f,
+                        path: fullPath,
+                        isActive: path.normalize(fullPath) === path.normalize(activeModel)
+                    };
+                });
+        }
+
+        this.panel.webview.postMessage({
+            type: 'updateState',
+            data: {
+                koboldPath,
+                modelDir,
+                models,
+                activeModel
+            }
+        });
     }
 
     private _getHtmlForWebview(webview: vscode.Webview): string {
         const styleUri = webview.asWebviewUri(vscode.Uri.joinPath(this.extensionUri, 'media', 'modelManager.css'));
         const scriptUri = webview.asWebviewUri(vscode.Uri.joinPath(this.extensionUri, 'media', 'modelManager.js'));
+        
         return `<!DOCTYPE html>
         <html lang="en">
         <head>
             <meta charset="UTF-8">
             <meta name="viewport" content="width=device-width, initial-scale=1.0">
             <link href="${styleUri}" rel="stylesheet">
-            <title>Models</title>
+            <title>Predic Dashboard</title>
         </head>
         <body>
             <div class="container">
-                <h1>Predic Models</h1>
-                <div id="modelList"></div>
+                <header>
+                    <h1>Predic Dashboard</h1>
+                </header>
+
+                <section class="settings-card">
+                    <h2>⚙️ Configuration</h2>
+                    <div class="setting-item">
+                        <label>KoboldCpp Executable</label>
+                        <div class="input-group">
+                            <input type="text" id="koboldPath" readonly placeholder="Not set (Auto-detecting...)">
+                            <button id="btn-kobold-path">Browse...</button>
+                        </div>
+                    </div>
+                    <div class="setting-item">
+                        <label>Models Directory</label>
+                        <div class="input-group">
+                            <input type="text" id="modelDir" readonly placeholder="Not set (Using default)">
+                            <button id="btn-model-dir">Browse...</button>
+                        </div>
+                    </div>
+                </section>
+
+                <section class="models-card">
+                    <h2>📚 Local Models</h2>
+                    <div id="model-list" class="model-list">
+                        </div>
+                </section>
             </div>
             <script src="${scriptUri}"></script>
         </body>

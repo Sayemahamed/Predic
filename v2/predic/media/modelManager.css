@@ -1,118 +1,73 @@
 body {
-    margin: 0;
-    padding: 20px;
-    font-family: var(--vscode-font-family);
-    font-size: var(--vscode-font-size);
-    color: var(--vscode-foreground);
     background-color: var(--vscode-editor-background);
-}
-
-.container {
+    color: var(--vscode-editor-foreground);
+    font-family: var(--vscode-font-family);
+    padding: 20px;
     max-width: 800px;
     margin: 0 auto;
 }
 
-h1 {
-    color: var(--vscode-foreground);
+h1 { border-bottom: 1px solid var(--vscode-settings-headerBorder); padding-bottom: 10px; }
+h2 { font-size: 1.1em; margin-bottom: 15px; display: flex; align-items: center; gap: 8px; }
+
+section {
+    background-color: var(--vscode-editor-inactiveSelectionBackground);
+    border-radius: 8px;
+    padding: 20px;
     margin-bottom: 20px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
 }
 
-.toolbar {
-    margin-bottom: 20px;
+.setting-item { margin-bottom: 15px; }
+.setting-item label { display: block; margin-bottom: 5px; font-weight: 600; font-size: 0.9em; }
+
+.input-group { display: flex; gap: 10px; }
+input[type="text"] {
+    flex: 1;
+    padding: 8px;
+    background-color: var(--vscode-input-background);
+    color: var(--vscode-input-foreground);
+    border: 1px solid var(--vscode-input-border);
+    border-radius: 4px;
 }
 
 button {
-    padding: 8px 16px;
     background-color: var(--vscode-button-background);
     color: var(--vscode-button-foreground);
     border: none;
+    padding: 8px 16px;
     border-radius: 4px;
     cursor: pointer;
-    margin-right: 10px;
 }
+button:hover { background-color: var(--vscode-button-hoverBackground); }
+button:disabled { opacity: 0.6; cursor: not-allowed; }
 
-button:hover {
-    background-color: var(--vscode-button-hoverBackground);
-}
+/* Model List */
+.model-list { display: flex; flex-direction: column; gap: 10px; }
 
-button:disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
-}
-
-.model-list {
-    display: grid;
-    gap: 15px;
-}
-
-.model-card {
-    padding: 20px;
-    background-color: var(--vscode-editor-inactiveSelectionBackground);
-    border: 1px solid var(--vscode-panel-border);
-    border-radius: 8px;
+.model-item {
+    background-color: var(--vscode-editor-background);
+    padding: 12px;
+    border-radius: 6px;
     display: flex;
     justify-content: space-between;
     align-items: center;
+    border: 1px solid transparent;
 }
 
-.model-card.selected {
-    border-color: var(--vscode-focusBorder);
-    background-color: var(--vscode-list-activeSelectionBackground);
+.model-item.active {
+    border-color: var(--vscode-button-background);
+    background-color: rgba(var(--vscode-button-background), 0.1);
 }
 
-.model-info h3 {
-    margin: 0 0 10px 0;
-    color: var(--vscode-textLink-foreground);
-}
-
-.model-info p {
-    margin: 5px 0;
-    color: var(--vscode-descriptionForeground);
-}
-
-.model-actions {
-    display: flex;
-    gap: 10px;
-    align-items: center;
-}
-
-.progress-bar {
-    width: 200px;
-    height: 20px;
-    background-color: var(--vscode-input-background);
-    border-radius: 10px;
-    overflow: hidden;
-}
-
-.progress-fill {
-    height: 100%;
-    background-color: var(--vscode-progressBar-background);
-    transition: width 0.3s ease;
-}
-
-.status-badge {
-    padding: 4px 8px;
-    border-radius: 4px;
-    font-size: 12px;
-    font-weight: bold;
-}
-
-.status-badge.available {
-    background-color: var(--vscode-editorInfo-background);
-    color: var(--vscode-editorInfo-foreground);
-}
-
-.status-badge.downloading {
-    background-color: var(--vscode-editorWarning-background);
-    color: var(--vscode-editorWarning-foreground);
-}
-
-.status-badge.ready {
-    background-color: var(--vscode-testing-iconPassed);
+.model-info { display: flex; align-items: center; gap: 10px; font-weight: 500; }
+.model-icon { font-size: 1.2em; }
+.badge {
+    font-size: 0.75em;
+    background-color: var(--vscode-charts-green);
     color: white;
+    padding: 2px 6px;
+    border-radius: 4px;
 }
 
-.status-badge.error {
-    background-color: var(--vscode-editorError-background);
-    color: var(--vscode-editorError-foreground);
-}
+.empty-state { text-align: center; opacity: 0.7; padding: 20px; font-style: italic; }

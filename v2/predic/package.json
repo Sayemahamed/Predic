@@ -19,9 +19,9 @@
     "commands": [
       {
         "command": "predic.openModelManager",
-        "title": "Manage Models",
+        "title": "Predic Dashboard",
         "category": "Predic",
-        "icon": "$(cloud-download)"
+        "icon": "$(settings-gear)"
       },
       {
         "command": "predic.startServer",
@@ -36,8 +36,8 @@
         "icon": "$(stop)"
       },
       {
-        "command": "predic.refreshModels",
-        "title": "Refresh Models",
+        "command": "predic.restartServer",
+        "title": "Restart Server",
         "category": "Predic",
         "icon": "$(refresh)"
       }
@@ -47,7 +47,7 @@
         {
           "id": "predic-sidebar",
           "title": "Predic",
-          "icon": "media/logo.png"
+          "icon": "media/logo.svg"
         }
       ]
     },
@@ -59,12 +59,6 @@
           "name": "Chat",
           "icon": "$(comment-discussion)",
           "contextualTitle": "Predic Chat"
-        },
-        {
-          "type": "tree",
-          "id": "predic.modelView",
-          "name": "Models",
-          "icon": "$(database)"
         }
       ]
     },
@@ -74,12 +68,17 @@
         "predic.koboldCppPath": {
           "type": "string",
           "default": "",
-          "description": "Path to the koboldcpp executable (e.g., ../koboldcpp.exe)"
+          "description": "Path to the koboldcpp executable (e.g., koboldcpp.exe)"
+        },
+        "predic.modelDir": {
+          "type": "string",
+          "default": "",
+          "description": "Directory containing your GGUF model files"
         },
         "predic.modelPath": {
           "type": "string",
           "default": "",
-          "description": "Path to the GGUF model file (e.g., ../models/qwen2.5-coder.gguf)"
+          "description": "Full path to the currently active model file"
         },
         "predic.port": {
           "type": "number",
@@ -89,26 +88,22 @@
         "predic.gpuLayers": {
           "type": "number",
           "default": -1,
-          "description": "Number of layers to offload to GPU (-1 for auto)"
+          "description": "Number of layers to offload to GPU (-1 for auto-detect)"
         },
         "predic.contextSize": {
           "type": "number",
           "default": 8192,
-          "description": "Context size for the model"
+          "description": "Context size (tokens) for the model"
         }
       }
     },
     "menus": {
       "view/title": [
         {
-          "command": "predic.refreshModels",
-          "when": "view == predic.modelView",
-          "group": "navigation"
-        },
-        {
           "command": "predic.openModelManager",
-          "when": "view == predic.modelView",
-          "group": "navigation"
+          "when": "view == predic.chatView",
+          "group": "navigation",
+          "title": "Settings & Models"
         }
       ]
     }
