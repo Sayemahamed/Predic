@@ -171,13 +171,18 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
     private _getHtmlForWebview(webview: vscode.Webview) {
         const scriptUri = webview.asWebviewUri(vscode.Uri.joinPath(this._extensionUri, 'media', 'chat.js'));
         const styleUri = webview.asWebviewUri(vscode.Uri.joinPath(this._extensionUri, 'media', 'chat.css'));
+        
+        // --- NEW: Get Logo URI ---
+        const logoPath = vscode.Uri.joinPath(this._extensionUri, 'media', 'logo.png');
+        const logoUri = webview.asWebviewUri(logoPath);
+        
         const nonce = getNonce();
 
         return `<!DOCTYPE html>
         <html lang="en">
         <head>
             <meta charset="UTF-8">
-            <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src ${webview.cspSource} 'unsafe-inline'; script-src 'nonce-${nonce}';">
+            <meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src ${webview.cspSource} https: data:; style-src ${webview.cspSource} 'unsafe-inline'; script-src 'nonce-${nonce}';">
             <meta name="viewport" content="width=device-width, initial-scale=1.0">
             <link href="${styleUri}" rel="stylesheet">
             <title>Predic Chat</title>
@@ -185,6 +190,7 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
         <body>
             <div id="chat-container">
                 <div class="welcome-message">
+                    <img src="${logoUri}" alt="Predic Logo" class="chat-logo" />
                     <h2>Predic AI</h2>
                     <p>Ask me anything about your code or type <code>@filename</code> to add context.</p>
                 </div>

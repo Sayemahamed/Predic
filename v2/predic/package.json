@@ -52,7 +52,7 @@
         {
           "id": "predic-sidebar",
           "title": "Predic",
-          "icon": "./v2/predic/media/icon.svg"
+          "icon": "media/sidebar-icon.svg"
         }
       ]
     },
@@ -62,7 +62,7 @@
           "type": "webview",
           "id": "predic.chatView",
           "name": "Chat",
-          "icon": "$(comment-discussion)",
+          "icon": "media/sidebar-icon.svg",
           "contextualTitle": "Predic Chat"
         }
       ]
