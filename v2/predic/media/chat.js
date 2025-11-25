@@ -8,6 +8,11 @@ const attachButton = document.getElementById('attach-button');
 const contextBar = document.getElementById('context-bar');
 const typingIndicator = document.getElementById('typing-indicator');
 
+// State
+let isStreaming = false;
+let activeMessageDiv = null;
+let activeContent = ""; 
+
 // Icons (Lucide Style)
 const ICONS = {
     copy: `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>`,
@@ -22,10 +27,27 @@ window.addEventListener('message', event => {
     const msg = event.data;
     switch (msg.type) {
         case 'addMessage':
-            // Remove welcome message on first chat
             const welcome = document.querySelector('.welcome-message');
             if (welcome) welcome.remove();
             addMessageToUI(msg.role, msg.content);
+            break;
+        case 'startStream':
+            isStreaming = true;
+            activeContent = ""; 
+            activeMessageDiv = document.createElement('div');
+            activeMessageDiv.className = `message ${msg.role}`;
+            chatContainer.appendChild(activeMessageDiv);
+            break;
+        case 'streamToken':
+            if (activeMessageDiv) {
+                activeContent += msg.content;
+                updateActiveMessage(activeContent);
+            }
+            break;
+        case 'endStream':
+            isStreaming = false;
+            activeMessageDiv = null;
+            activeContent = "";
             break;
         case 'fileAttached':
             addContextChip(msg.fileName);
@@ -47,10 +69,9 @@ function sendMessage() {
     
     vscode.postMessage({ type: 'sendMessage', value: text });
     messageInput.value = '';
-    messageInput.style.height = 'auto'; // Reset height
+    messageInput.style.height = 'auto';
 }
 
-// Auto-resize textarea
 messageInput.addEventListener('input', function() {
     this.style.height = 'auto';
     this.style.height = (this.scrollHeight) + 'px';
@@ -82,30 +103,78 @@ function addContextChip(name) {
 function addMessageToUI(role, content) {
     const div = document.createElement('div');
     div.className = `message ${role}`;
-    
-    // Parse Code Blocks
+    renderContent(div, content);
+    chatContainer.appendChild(div);
+    chatContainer.scrollTop = chatContainer.scrollHeight;
+}
+
+function updateActiveMessage(content) {
+    if (!activeMessageDiv) return;
+    activeMessageDiv.innerHTML = '';
+    renderContent(activeMessageDiv, content);
+    chatContainer.scrollTop = chatContainer.scrollHeight;
+}
+
+function renderContent(container, content) {
+    // Split by code blocks
     const parts = content.split(/```(\w*)\n([\s\S]*?)```/g);
     
     parts.forEach((part, index) => {
         if (index % 3 === 0) {
-            if (part.trim()) {
-                const p = document.createElement('div');
-                p.innerHTML = formatMarkdown(part); // Simple bold/italic
-                div.appendChild(p);
+            if (part) { // Allow whitespace for streaming spacing
+                const wrapper = document.createElement('div');
+                wrapper.className = 'markdown-body';
+                wrapper.innerHTML = formatMarkdown(part);
+                container.appendChild(wrapper);
             }
         } else if (index % 3 === 2) {
             const lang = parts[index-1] || 'text';
-            div.appendChild(createCodeBlock(part, lang));
+            container.appendChild(createCodeBlock(part, lang));
         }
     });
 
-    // Fallback for plain text
+    // Fallback
     if (parts.length === 1) {
-        div.innerHTML = formatMarkdown(content);
+        container.innerHTML = `<div class="markdown-body">${formatMarkdown(content)}</div>`;
     }
+}
 
-    chatContainer.appendChild(div);
-    chatContainer.scrollTop = chatContainer.scrollHeight;
+// --- Markdown Parser ---
+function formatMarkdown(text) {
+    let html = text
+        // Escape HTML
+        .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
+        
+        // Headers (### Title)
+        .replace(/^### (.*$)/gm, '<h3>$1</h3>')
+        .replace(/^## (.*$)/gm, '<h2>$1</h2>')
+        .replace(/^# (.*$)/gm, '<h1>$1</h1>')
+        
+        // Bold / Italic
+        .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+        .replace(/\*(.*?)\*/g, '<em>$1</em>')
+        
+        // Inline Code
+        .replace(/`([^`]+)`/g, '<code>$1</code>')
+        
+        // Lists (- item)
+        .replace(/^\s*[-*]\s+(.*$)/gm, '<li>$1</li>')
+        // Numbered Lists (1. item)
+        .replace(/^\s*\d+\.\s+(.*$)/gm, '<li>$1</li>')
+        
+        // Horizontal Rule
+        .replace(/^---$/gm, '<hr>');
+
+    // Wrap lists in <ul> (Simple Heuristic: consecutive <li>s)
+    // This regex finds a group of <li>...</li> and wraps them.
+    // Note: This is a "light" parser, ideal for chat streams.
+    html = html.replace(/(<li>.*<\/li>)/gs, '<ul>$1</ul>');
+    
+    // Paragraphs: Double newlines become breaks, but ignore if inside tags
+    // We use CSS white-space: pre-wrap usually, but for mixed HTML we need <p> or <br>
+    html = html.replace(/\n\n/g, '<br><br>');
+
+    return html;
 }
 
 function createCodeBlock(code, lang) {
@@ -119,14 +188,12 @@ function createCodeBlock(code, lang) {
     const actions = document.createElement('div');
     actions.className = 'code-actions';
 
-    // Copy Button
     const copyBtn = createBtn('Copy', ICONS.copy, () => {
         navigator.clipboard.writeText(code);
         copyBtn.innerHTML = `${ICONS.check} <span>Copied</span>`;
         setTimeout(() => copyBtn.innerHTML = `${ICONS.copy} <span>Copy</span>`, 2000);
     });
 
-    // Insert Button
     const insertBtn = createBtn('Insert', ICONS.insert, () => {
         vscode.postMessage({ type: 'insertCode', value: code });
     });
@@ -147,14 +214,7 @@ function createBtn(label, icon, onClick) {
     const btn = document.createElement('button');
     btn.className = 'action-btn';
     btn.title = label;
-    btn.innerHTML = `${icon} <span>${label}</span>`; // Text label for clarity
+    btn.innerHTML = `${icon} <span>${label}</span>`;
     btn.addEventListener('click', onClick);
     return btn;
-}
-
-function formatMarkdown(text) {
-    // Basic formatting for bold and inline code
-    return text
-        .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
-        .replace(/`([^`]+)`/g, '<code>$1</code>');
 }

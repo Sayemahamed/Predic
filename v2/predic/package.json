@@ -151,6 +151,7 @@
   },
   "dependencies": {
     "@vscode/codicons": "^0.0.40",
-    "axios": "^1.6.5"
+    "axios": "^1.6.5",
+    "openai": "^6.9.1"
   }
 }

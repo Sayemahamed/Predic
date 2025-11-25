@@ -122,8 +122,11 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
     private async handleUserMessage(content: string) {
         if (!this._view) return;
 
+        // 1. Show User Message
         this._view.webview.postMessage({ type: 'addMessage', role: 'user', content: content });
-        this._view.webview.postMessage({ type: 'setLoading', value: true });
+        
+        // 2. Signal UI to start an empty "Assistant" bubble
+        this._view.webview.postMessage({ type: 'startStream', role: 'assistant' });
 
         try {
             const dynamicContext = await this.parseAndLoadFileRefs(content);
@@ -142,32 +145,38 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
             const messages = [
                 { 
                     role: "system", 
-                    content: "You are Predic, an intelligent coding companion. When providing code, use Markdown code blocks with the language specified. Do NOT provide explanations unless the user specifically asks 'explain' or 'why'. If you are fixing code, just provide the fixed code block. Be concise." 
+                    content: "You are Predic. Provide ONLY code or direct answers. Do NOT explain code unless explicitly asked." 
                 },
                 { role: "user", content: fullPrompt }
             ];
             
-            const response = await this.apiClient.chat(messages);
-            const aiText = response.data.choices[0].message.content;
+            // 3. Call the new Stream method
+            await this.apiClient.chatStream(messages, (token) => {
+                // Pass every token directly to the frontend
+                this._view?.webview.postMessage({ 
+                    type: 'streamToken', 
+                    content: token 
+                });
+            });
             
-            this._view.webview.postMessage({ type: 'addMessage', role: 'assistant', content: aiText });
-            
+            // 4. Finish
+            this._view.webview.postMessage({ type: 'endStream' });
+
             if(this.activeContext) {
                 this.activeContext = "";
                 this._view.webview.postMessage({ type: 'clearContext' });
             }
 
         } catch (error: any) {
+            this._view.webview.postMessage({ type: 'endStream' }); // Ensure loading stops
             this._view.webview.postMessage({ 
                 type: 'addMessage', 
                 role: 'system', 
-                content: `Error: ${error.message || "Connection failed. Is the server running?"}` 
+                content: `Error: ${error.message || "Connection failed."}` 
             });
-        } finally {
-            this._view.webview.postMessage({ type: 'setLoading', value: false });
         }
     }
-
+    
     private _getHtmlForWebview(webview: vscode.Webview) {
         const scriptUri = webview.asWebviewUri(vscode.Uri.joinPath(this._extensionUri, 'media', 'chat.js'));
         const styleUri = webview.asWebviewUri(vscode.Uri.joinPath(this._extensionUri, 'media', 'chat.css'));

@@ -17,23 +17,55 @@ export class PredicAPIClient {
         }
     }
 
-    async chat(messages: any[]) {
-        // KoboldCpp OpenAI-compatible endpoint
-        return await axios.post(`${this.baseUrl}/v1/chat/completions`, {
-            messages: messages,
-            model: "koboldcpp", // Name doesn't matter for local
-            max_tokens: 2048,
-            stream: false 
-        });
-    }
+    async chatStream(messages: any[], onToken: (token: string) => void): Promise<void> {
+        try {
+            const response = await axios.post(`${this.baseUrl}/v1/chat/completions`, {
+                messages: messages,
+                model: "koboldcpp",
+                max_tokens: 2048,
+                stream: true
+            }, {
+                responseType: 'stream' // Crucial: Get the raw stream
+            });
 
-    async completion(prompt: string) {
-        const response = await axios.post(`${this.baseUrl}/v1/completions`, {
-            prompt: prompt,
-            max_tokens: 50,
-            stop: ["\n"],
-            temperature: 0.2
-        });
-        return response.data.choices[0].text;
+            const stream = response.data;
+            let buffer = '';
+
+            // Process chunks as they arrive
+            for await (const chunk of stream) {
+                // 1. Append new chunk to buffer
+                buffer += chunk.toString();
+
+                // 2. Process all complete lines in the buffer
+                const lines = buffer.split('\n');
+                
+                // The last line might be incomplete, so we save it back to the buffer
+                // to wait for the next chunk.
+                buffer = lines.pop() || ''; 
+
+                for (const line of lines) {
+                    const trimmed = line.trim();
+                    if (!trimmed || trimmed === 'data: [DONE]') continue;
+
+                    if (trimmed.startsWith('data: ')) {
+                        try {
+                            const jsonStr = trimmed.substring(6); // Remove "data: "
+                            const json = JSON.parse(jsonStr);
+                            const content = json.choices[0]?.delta?.content;
+                            
+                            if (content) {
+                                onToken(content);
+                            }
+                        } catch (e) {
+                            // If a line is malformed, we log it but don't crash
+                            console.warn("Skipping malformed line:", trimmed);
+                        }
+                    }
+                }
+            }
+        } catch (error) {
+            console.error("Stream Error:", error);
+            throw error; // Re-throw so the UI knows to show an error
+        }
     }
 }
