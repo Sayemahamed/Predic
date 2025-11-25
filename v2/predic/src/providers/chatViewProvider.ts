@@ -27,49 +27,13 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
 
         webviewView.webview.html = this._getHtmlForWebview(webviewView.webview);
 
-        this._setWebviewMessageListener(webviewView.webview);
-        this.sendModelList(webviewView.webview);
-    }
-
-    // --- PUBLIC ACTIONS ---
-
-    public clearChat() {
-        if (this._view) {
-            this._view.webview.postMessage({ type: 'clearContext' });
-            // We can also reload the webview to clear chat history visually
-            this._view.webview.html = this._getHtmlForWebview(this._view.webview);
-            this.sendModelList(this._view.webview);
-        }
-    }
-
-    public openInEditor() {
-        // Create a new panel in the editor area (Full Screen Chat)
-        const panel = vscode.window.createWebviewPanel(
-            'predicChatFull',
-            'Predic Chat',
-            vscode.ViewColumn.One,
-            {
-                enableScripts: true,
-                localResourceRoots: [this._extensionUri],
-                retainContextWhenHidden: true
-            }
-        );
-
-        panel.webview.html = this._getHtmlForWebview(panel.webview);
-        this._setWebviewMessageListener(panel.webview);
-        this.sendModelList(panel.webview);
-    }
-
-    // ----------------------
-
-    private _setWebviewMessageListener(webview: vscode.Webview) {
-        webview.onDidReceiveMessage(async (data) => {
+        webviewView.webview.onDidReceiveMessage(async (data) => {
             switch (data.type) {
                 case 'sendMessage':
-                    await this.handleUserMessage(webview, data.value);
+                    await this.handleUserMessage(data.value);
                     break;
                 case 'attachFile':
-                    await this.handleFileAttachment(webview);
+                    await this.handleFileAttachment();
                     break;
                 case 'removeContext':
                     this.activeContext = "";
@@ -79,17 +43,46 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
                     await this.handleInsertCode(data.value);
                     break;
                 case 'changeModel':
-                    await this.setActiveModel(webview, data.value);
+                    await this.setActiveModel(data.value);
                     break;
                 case 'refreshModels':
-                    this.sendModelList(webview);
+                    this.sendModelList();
                     break;
-                // Commands now handled by extension.ts via package.json menus
+                // --- HEADER ACTIONS ---
+                case 'openSettings':
+                    vscode.commands.executeCommand('predic.openModelManager');
+                    break;
+                case 'toggleFullScreen':
+                    vscode.commands.executeCommand('workbench.action.toggleFullScreen');
+                    break;
+                case 'closeChat':
+                    vscode.commands.executeCommand('workbench.action.closeSidebar');
+                    break;
+                case 'openInEditor':
+                    vscode.commands.executeCommand('workbench.action.moveView');
+                    break;
+                case 'clearChat':
+                    this.activeContext = "";
+                    break;
             }
         });
+
+        this.sendModelList();
     }
 
-    private sendModelList(webview: vscode.Webview) {
+    public clearChat() {
+        if (this._view) {
+            this._view.webview.postMessage({ type: 'clearChat' });
+            this.activeContext = "";
+        }
+    }
+
+    public openInEditor() {
+        vscode.commands.executeCommand('workbench.action.moveView');
+    }
+
+    private sendModelList() {
+        if (!this._view) return;
         const config = vscode.workspace.getConfiguration('predic');
         const modelDir = config.get<string>('modelDir') || path.join(this._extensionUri.fsPath, '..', 'models');
         const currentPath = config.get<string>('modelPath') || "";
@@ -109,14 +102,14 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
             }
         }
         
-        webview.postMessage({ type: 'updateModels', models: models });
+        this._view.webview.postMessage({ type: 'updateModels', models: models });
     }
 
-    private async setActiveModel(webview: vscode.Webview, modelPath: string) {
+    private async setActiveModel(modelPath: string) {
         await vscode.workspace.getConfiguration('predic').update('modelPath', modelPath, vscode.ConfigurationTarget.Global);
         vscode.commands.executeCommand('predic.restartServer');
-        vscode.window.showInformationMessage(`Switched model.`);
-        this.sendModelList(webview);
+        vscode.window.showInformationMessage(`Switched model. Restarting server...`);
+        this.sendModelList();
     }
 
     public async triggerAnalysis(prompt: string, codeContext: string) {
@@ -130,16 +123,21 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
                 fileName: "Selection" 
             });
 
-            await this.handleUserMessage(this._view.webview, prompt);
+            await this.handleUserMessage(prompt);
         }
     }
 
-    private async handleFileAttachment(webview: vscode.Webview) {
+    private async handleFileAttachment() {
         const uris = await vscode.window.showOpenDialog({
             canSelectMany: false,
             openLabel: 'Add Context',
             filters: { 
-                'Code Files': ['ts', 'js', 'jsx', 'tsx', 'py', 'java', 'c', 'cpp', 'h', 'hpp', 'cs', 'go', 'rs', 'php', 'rb', 'sh', 'yaml', 'yml', 'json', 'md', 'txt'],
+                'Code Files': [
+                    'ts', 'js', 'jsx', 'tsx', 'py', 'java', 'c', 'cpp', 'h', 'hpp', 'cs', 'go', 'rs', 
+                    'php', 'rb', 'sh', 'yaml', 'yml', 'json', 'md', 'txt', 'css', 'html', 'xml', 'sql', 
+                    'lua', 'pl', 'ex', 'hs', 'clj', 'groovy', 'nim', 'cr', 'jl', 'ml', 'fs', 'zig', 
+                    'elm', 'erl', 'vhd', 'v', 'f90', 'asm', 'toml', 'swift', 'kt', 'scala', 'dart', 'r'
+                ],
                 'All Files': ['*']
             }
         });
@@ -150,7 +148,7 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
                 this.activeFileName = uris[0].path.split('/').pop() || "File";
                 this.activeContext = content;
                 
-                webview.postMessage({ 
+                this._view?.webview.postMessage({ 
                     type: 'fileAttached', 
                     fileName: this.activeFileName 
                 });
@@ -175,9 +173,11 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
         }
     }
 
-    private async handleUserMessage(webview: vscode.Webview, content: string) {
-        webview.postMessage({ type: 'addMessage', role: 'user', content: content });
-        webview.postMessage({ type: 'startStream', role: 'assistant' });
+    private async handleUserMessage(content: string) {
+        if (!this._view) return;
+
+        this._view.webview.postMessage({ type: 'addMessage', role: 'user', content: content });
+        this._view.webview.postMessage({ type: 'startStream', role: 'assistant' });
 
         try {
             let fullPrompt = "";
@@ -192,19 +192,19 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
             ];
             
             await this.apiClient.chatStream(messages, (token) => {
-                webview.postMessage({ type: 'streamToken', content: token });
+                this._view?.webview.postMessage({ type: 'streamToken', content: token });
             });
             
-            webview.postMessage({ type: 'endStream' });
+            this._view.webview.postMessage({ type: 'endStream' });
 
             if(this.activeContext) {
                 this.activeContext = "";
-                webview.postMessage({ type: 'clearContext' });
+                this._view.webview.postMessage({ type: 'clearContext' });
             }
 
         } catch (error: any) {
-            webview.postMessage({ type: 'endStream' });
-            webview.postMessage({ 
+            this._view.webview.postMessage({ type: 'endStream' });
+            this._view.webview.postMessage({ 
                 type: 'addMessage', 
                 role: 'system', 
                 content: `Error: ${error.message || "Connection failed."}` 
@@ -238,8 +238,13 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
             
             <div class="input-wrapper">
                 <div id="context-bar" class="hidden"></div>
+                
                 <div class="input-container">
-                    <textarea id="message-input" placeholder="Ask about your code..."></textarea>
+                    <div class="input-stack">
+                        <div id="highlight-backdrop" aria-hidden="true"></div>
+                        <textarea id="message-input" placeholder="Ask about your code or @file..."></textarea>
+                    </div>
+
                     <div class="input-footer">
                         <div class="left-tools">
                             <button id="attach-button" class="icon-btn" title="Attach Context">

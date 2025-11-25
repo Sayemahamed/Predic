@@ -5,7 +5,7 @@
     --input-bg: var(--vscode-input-background);
     --border: var(--vscode-widget-border);
     --accent: var(--vscode-button-background);
-    --radius: 6px;
+    --radius: 4px;
 }
 
 body {
@@ -13,8 +13,10 @@ body {
     padding: 0;
     background-color: var(--chat-bg);
     color: var(--chat-fg);
-    font-family: var(--vscode-font-family);
-    font-size: var(--vscode-font-size);
+    /* COPILOT STANDARD FONT STACK */
+    font-family: var(--vscode-font-family), "Segoe UI", "Helvetica Neue", Helvetica, sans-serif;
+    font-size: 13px; /* Standard VS Code UI size */
+    line-height: 1.5;
     display: flex;
     flex-direction: column;
     height: 100vh;
@@ -41,7 +43,7 @@ button:hover {
 #chat-container {
     flex: 1;
     overflow-y: auto;
-    padding: 16px;
+    padding: 20px 16px;
     display: flex;
     flex-direction: column;
     gap: 24px;
@@ -56,14 +58,14 @@ button:hover {
     height: 100%;
     text-align: center;
     opacity: 0.8;
-    margin-top: 10vh;
+    margin-top: 5vh;
 }
 
 .chat-logo {
-    width: 64px;
-    height: 64px;
-    margin-bottom: 16px;
-    filter: drop-shadow(0 4px 6px rgba(0,0,0,0.1));
+    width: 48px;
+    height: 48px;
+    margin-bottom: 12px;
+    opacity: 0.9;
 }
 
 /* Messages */
@@ -71,46 +73,115 @@ button:hover {
     display: flex;
     flex-direction: column;
     gap: 6px;
-    animation: fadeIn 0.2s ease-out;
+    animation: fadeIn 0.15s ease-out;
 }
-@keyframes fadeIn { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
+@keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
 
 .message-header {
     display: flex;
     align-items: center;
     gap: 8px;
-    font-size: 0.85em;
+    font-size: 11px;
     font-weight: 600;
+    text-transform: uppercase;
     color: var(--vscode-descriptionForeground);
-    margin-left: 4px;
+    margin-left: 2px;
 }
 
-/* User Message Styling */
+/* Content Styles */
+.message-content {
+    font-size: 13px;
+    line-height: 1.5;
+}
+
+/* User Message Box */
 .message-wrapper.user .message-content {
-    background-color: var(--vscode-textBlockQuote-background); /* Subtle distinct background */
+    background-color: var(--vscode-textBlockQuote-background);
     border: 1px solid var(--border);
-    border-radius: 8px;
-    padding: 10px 14px;
+    border-radius: 6px;
+    padding: 8px 12px;
     align-self: flex-start;
     width: fit-content;
     max-width: 90%;
+    position: relative;
+    white-space: pre-wrap; /* Preserves user typing format */
 }
 
+.user-actions {
+    display: flex;
+    gap: 6px;
+    justify-content: flex-end;
+    margin-top: 4px;
+    opacity: 0;
+    transition: opacity 0.2s;
+}
+
+.message-wrapper.user:hover .user-actions {
+    opacity: 1;
+}
+
+.msg-action-btn {
+    font-size: 11px;
+    padding: 2px 6px;
+    background-color: var(--vscode-editor-background);
+    border: 1px solid var(--border);
+    color: var(--vscode-descriptionForeground);
+    gap: 4px;
+}
+.msg-action-btn:hover {
+    background-color: var(--vscode-toolbar-hoverBackground);
+    color: var(--vscode-foreground);
+}
+
+/* AI Message (Markdown) */
 .message-wrapper.assistant .message-content {
-    padding-left: 4px; /* Align with header */
+    padding-left: 2px; 
     background: transparent;
 }
 
-/* Markdown & Code */
-.markdown-body { line-height: 1.6; }
-.markdown-body code {
-    background-color: var(--vscode-textCodeBlock-background);
-    padding: 2px 5px;
-    border-radius: 4px;
-    font-family: var(--vscode-editor-font-family);
-    font-size: 0.9em;
+/* MARKDOWN BODY - The "Weird Output" Fix */
+.markdown-body { 
+    white-space: pre-wrap; /* CRITICAL: Respects newlines without <br> spam */
+    word-wrap: break-word;
 }
 
+/* Proper Header Styling */
+.markdown-body h1, .markdown-body h2, .markdown-body h3 {
+    font-weight: 600;
+    margin-top: 16px;
+    margin-bottom: 8px;
+    line-height: 1.25;
+}
+.markdown-body h1 { font-size: 1.4em; border-bottom: 1px solid var(--border); padding-bottom: 0.3em; }
+.markdown-body h2 { font-size: 1.2em; border-bottom: 1px solid var(--border); padding-bottom: 0.3em; }
+.markdown-body h3 { font-size: 1.1em; }
+
+/* Lists */
+.markdown-body ul, .markdown-body ol {
+    margin: 8px 0;
+    padding-left: 24px;
+}
+.markdown-body li {
+    margin-bottom: 4px;
+}
+
+/* Inline Code */
+.markdown-body code {
+    font-family: var(--vscode-editor-font-family), "Cascadia Code", Consolas, monospace;
+    font-size: 0.9em;
+    color: var(--vscode-textLink-activeForeground);
+    background-color: var(--vscode-textCodeBlock-background);
+    padding: 2px 4px;
+    border-radius: 4px;
+}
+
+/* Bold Text */
+.markdown-body strong {
+    font-weight: 700;
+    color: var(--vscode-textLink-foreground);
+}
+
+/* --- Code Blocks (Editor Style) --- */
 .code-block-container {
     margin: 12px 0;
     border: 1px solid var(--border);
@@ -121,24 +192,40 @@ button:hover {
 
 .code-header {
     display: flex;
-    justify-content: space-between;
+    justify-content: space-between; 
     align-items: center;
     padding: 6px 12px;
     background-color: var(--vscode-editor-inactiveSelectionBackground);
     border-bottom: 1px solid var(--border);
-    font-size: 0.8em;
+    font-size: 11px;
     color: var(--vscode-descriptionForeground);
+    font-family: var(--vscode-font-family);
+}
+
+.code-actions {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+}
+
+.action-btn {
+    display: flex;
+    gap: 4px;
+    padding: 2px 6px;
+    font-size: 11px;
 }
 
 pre {
     margin: 0;
     padding: 12px;
     overflow-x: auto;
-    font-family: var(--vscode-editor-font-family);
-    font-size: 0.95em;
+    font-family: var(--vscode-editor-font-family), "Cascadia Code", Consolas, monospace;
+    font-size: 12px;
+    line-height: 1.5;
+    tab-size: 4;
 }
 
-/* --- Input Area (Copilot Style) --- */
+/* --- Input Area --- */
 .input-wrapper {
     padding: 16px;
     background-color: var(--chat-bg);
@@ -147,12 +234,11 @@ pre {
 .input-container {
     background-color: var(--input-bg);
     border: 1px solid var(--vscode-input-border);
-    border-radius: 8px;
+    border-radius: 6px;
     padding: 8px 10px;
     display: flex;
     flex-direction: column;
     gap: 4px;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.05);
 }
 
 .input-container:focus-within {
@@ -160,20 +246,60 @@ pre {
     outline: 1px solid var(--vscode-focusBorder);
 }
 
-textarea {
-    background: transparent;
-    color: var(--vscode-input-foreground);
-    border: none;
-    resize: none;
-    outline: none;
-    font-family: inherit;
-    font-size: inherit;
-    min-height: 24px;
-    max-height: 200px;
+/* Stack for Overlap */
+.input-stack {
+    position: relative;
     width: 100%;
+    min-height: 24px;
 }
 
-/* Bottom Toolbar inside Input */
+#message-input, #highlight-backdrop {
+    font-family: var(--vscode-font-family), sans-serif;
+    font-size: 13px;
+    line-height: 1.5;
+    padding: 4px;
+    width: 100%;
+    box-sizing: border-box;
+    border: none;
+    margin: 0;
+    white-space: pre-wrap;
+    word-wrap: break-word;
+    overflow-x: hidden;
+    min-height: 24px;
+}
+
+#message-input {
+    position: relative;
+    z-index: 2;
+    background: transparent;
+    color: var(--vscode-input-foreground);
+    resize: none;
+    outline: none;
+}
+
+#highlight-backdrop {
+    position: absolute;
+    top: 0;
+    left: 0;
+    z-index: 1;
+    color: transparent;
+    pointer-events: none;
+    background: transparent;
+}
+
+/* Highlight Span */
+.file-ref {
+    background-color: rgba(55, 148, 255, 0.2);
+    color: transparent; 
+    border-radius: 3px;
+}
+.message-content .file-ref {
+    color: var(--vscode-textLink-foreground);
+    background-color: rgba(55, 148, 255, 0.1);
+    padding: 0 2px;
+}
+
+/* Bottom Toolbar */
 .input-footer {
     display: flex;
     justify-content: space-between;
@@ -187,17 +313,16 @@ textarea {
     gap: 6px;
 }
 
-/* Model Selector Dropdown (Embedded) */
 .model-dropdown {
     background-color: transparent;
     color: var(--vscode-descriptionForeground);
     border: 1px solid transparent;
     border-radius: 4px;
     padding: 2px 4px;
-    font-size: 0.85em;
+    font-size: 11px;
     outline: none;
     cursor: pointer;
-    max-width: 120px; /* Compact */
+    max-width: 140px;
 }
 .model-dropdown:hover {
     background-color: var(--vscode-toolbar-hoverBackground);
@@ -228,20 +353,14 @@ textarea {
     border: 1px solid var(--border);
     border-radius: 12px;
     padding: 2px 8px;
-    font-size: 0.8em;
+    font-size: 11px;
     cursor: default;
 }
 
-.chip-img {
-    width: 16px;
-    height: 16px;
-    display: block;
-}
-
-
+.chip-img { width: 14px; height: 14px; display: block; }
 
 .chip-close {
-    margin-left: 2px;
+    margin-left: 4px;
     cursor: pointer;
     opacity: 0.6;
 }

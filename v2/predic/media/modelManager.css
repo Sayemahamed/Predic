@@ -16,9 +16,39 @@ body {
     margin: 0 auto;
 }
 
-header { margin-bottom: 30px; border-bottom: 1px solid var(--border); padding-bottom: 10px; }
-h1 { margin: 0; font-size: 1.8em; font-weight: 600; }
-.subtitle { color: var(--vscode-descriptionForeground); margin-top: 5px; }
+/* --- Header Styles --- */
+.dashboard-header {
+    margin-bottom: 30px;
+    border-bottom: 1px solid var(--border);
+    padding-bottom: 20px;
+}
+
+.logo-container {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+}
+
+.dashboard-logo {
+    width: 64px;
+    height: 64px;
+    object-fit: contain;
+    filter: drop-shadow(0 2px 4px rgba(0,0,0,0.2));
+}
+
+h1 { 
+    margin: 0; 
+    font-size: 2em; 
+    font-weight: 700; 
+    border: none;
+    padding: 0;
+}
+
+.subtitle { 
+    color: var(--vscode-descriptionForeground); 
+    margin: 5px 0 0 0; 
+    font-size: 1em; 
+}
 
 h2 { font-size: 1.1em; margin-bottom: 15px; margin-top: 0; font-weight: 600; }
 
@@ -26,11 +56,24 @@ section {
     margin-bottom: 30px;
 }
 
+/* Special styling for Predic Official Section */
+.special-card {
+    background: linear-gradient(to bottom right, var(--card-bg), rgba(var(--accent), 0.05));
+}
+
+.section-desc {
+    margin-top: -10px;
+    margin-bottom: 20px;
+    color: var(--vscode-descriptionForeground);
+    font-size: 0.95em;
+}
+
 /* Grid for Recommended */
 .model-grid {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
     gap: 15px;
+    padding: 20px;
 }
 
 .model-card {
@@ -46,6 +89,14 @@ section {
 .model-card:hover {
     border-color: var(--accent);
     transform: translateY(-2px);
+}
+
+/* Predic Model Cards specific styling */
+.predic-card {
+    border-left: 4px solid var(--accent);
+}
+.predic-card .model-title {
+    color: var(--vscode-textLink-foreground);
 }
 
 .active-card {
@@ -64,7 +115,7 @@ section {
 .model-size { 
     font-size: 0.8em; 
     background: var(--vscode-badge-background); 
-    color: var(--vscode-badge-foreground);
+    color: var(--vscode-badge-foreground); 
     padding: 2px 6px; 
     border-radius: 4px; 
 }
@@ -157,25 +208,3 @@ input[type="text"] {
 
 .empty-state { padding: 20px; text-align: center; color: var(--vscode-descriptionForeground); }
 .badge { font-size: 0.75em; background: var(--vscode-charts-green); color: white; padding: 2px 6px; border-radius: 4px; }
-
-.special-card {
-    background: linear-gradient(to bottom right, var(--card-bg), rgba(var(--accent), 0.05));
-    border: 1px solid var(--accent);
-    padding: 20px;
-}
-
-.section-desc {
-    margin-top: -10px;
-    margin-bottom: 20px;
-    color: var(--vscode-descriptionForeground);
-    font-size: 0.95em;
-}
-
-/* Predic Model Cards specific styling */
-.predic-card {
-    border-left: 4px solid var(--accent);
-}
-
-.predic-card .model-title {
-    color: var(--vscode-textLink-foreground);
-}

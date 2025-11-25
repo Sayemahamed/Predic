@@ -9,8 +9,8 @@ const PREDIC_MODELS = [
         id: 'reacomplete-v1',
         name: 'ReaComplete (Fine-Tuned)',
         description: 'Our official specialized model optimized for React & TypeScript code completion.',
-        size: 'Unknown', // Update this when you know
-        filename: 'ReaComplete-Q4_K_M.gguf', // <--- CHECK THIS FILENAME ON HUGGINGFACE
+        size: 'Unknown', 
+        filename: 'ReaComplete-Q4_K_M.gguf',
         url: 'https://huggingface.co/Sayempro/ReaComplete/resolve/main/ReaComplete-Q4_K_M.gguf' 
     }
 ];
@@ -122,7 +122,6 @@ export class ModelManagerProvider {
     }
 
     private async downloadModel(modelId: string, isPredic: boolean) {
-        // Determine which list to search
         const list = isPredic ? PREDIC_MODELS : CURATED_MODELS;
         const model = list.find(m => m.id === modelId);
         
@@ -154,9 +153,7 @@ export class ModelManagerProvider {
                 const file = fs.createWriteStream(destPath);
                 const request = https.get(model.url, (response) => {
                     if (response.statusCode === 301 || response.statusCode === 302) {
-                        // Basic redirect handling (manual recursion)
-                        // Ideally utilize a robust lib like axios or follow-redirects, 
-                        // but simple works for direct HF links usually.
+                        // Handle redirects if necessary
                     }
 
                     const totalLen = parseInt(response.headers['content-length'] || '0', 10);
@@ -224,7 +221,6 @@ export class ModelManagerProvider {
             };
         });
 
-        // Map lists (Predic & Curated)
         const mapModel = (m: any) => {
             const isDownloaded = localFiles.includes(m.filename);
             const fullPath = path.join(modelDir, m.filename);
@@ -245,7 +241,7 @@ export class ModelManagerProvider {
                 modelDir,
                 localModels,
                 curatedModels,
-                predicModels, // Send the new list
+                predicModels,
                 activeModel
             }
         });
@@ -260,15 +256,21 @@ export class ModelManagerProvider {
         <html lang="en">
         <head>
             <meta charset="UTF-8">
+            <meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src ${webview.cspSource} https: data:; style-src ${webview.cspSource} 'unsafe-inline'; script-src ${webview.cspSource};">
             <meta name="viewport" content="width=device-width, initial-scale=1.0">
             <link href="${styleUri}" rel="stylesheet">
             <title>Predic Dashboard</title>
         </head>
         <body>
             <div class="container">
-                <header>
-                    <h1>Predic Dashboard</h1>
-                    <p class="subtitle">Manage your local AI engine and models</p>
+                <header class="dashboard-header">
+                    <div class="logo-container">
+                        <img src="${logoUri}" alt="Predic Logo" class="dashboard-logo">
+                        <div>
+                            <h1>Predic Dashboard</h1>
+                            <p class="subtitle">Manage your local AI engine and models</p>
+                        </div>
+                    </div>
                 </header>
 
                 <section class="models-card special-card">
