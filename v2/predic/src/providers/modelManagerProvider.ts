@@ -254,6 +254,7 @@ export class ModelManagerProvider {
     private _getHtmlForWebview(webview: vscode.Webview): string {
         const styleUri = webview.asWebviewUri(vscode.Uri.joinPath(this.extensionUri, 'media', 'modelManager.css'));
         const scriptUri = webview.asWebviewUri(vscode.Uri.joinPath(this.extensionUri, 'media', 'modelManager.js'));
+        const logoUri = webview.asWebviewUri(vscode.Uri.joinPath(this.extensionUri, 'media', 'background.png'));
         
         return `<!DOCTYPE html>
         <html lang="en">

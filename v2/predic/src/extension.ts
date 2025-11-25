@@ -7,24 +7,36 @@ import { ModelManagerProvider } from './providers/modelManagerProvider';
 export async function activate(context: vscode.ExtensionContext) {
     const serverManager = new ServerManager(context);
     
-    // Providers
     const chatProvider = new ChatViewProvider(context.extensionUri);
     const modelManagerProvider = new ModelManagerProvider(context.extensionUri, context);
     const inlineProvider = new PredicInlineCompletionProvider();
 
-    // Register View
     context.subscriptions.push(
         vscode.window.registerWebviewViewProvider("predic.chatView", chatProvider)
     );
 
-    // Commands
     context.subscriptions.push(
-        // Basic
         vscode.commands.registerCommand('predic.openModelManager', () => modelManagerProvider.show()),
+        vscode.commands.registerCommand('predic.clearChat', () => chatProvider.clearChat()),
+        
+        // 1. Close Command
+        vscode.commands.registerCommand('predic.closeChat', () => {
+            vscode.commands.executeCommand('workbench.action.toggleSidebarVisibility');
+        }),
+
+        // 2. Full Screen Command
+        vscode.commands.registerCommand('predic.openInEditor', () => {
+            chatProvider.openInEditor();
+        }),
+
         vscode.commands.registerCommand('predic.startServer', () => serverManager.start()),
         vscode.commands.registerCommand('predic.stopServer', () => serverManager.stop()),
-        
-        // Smart Actions
+        vscode.commands.registerCommand('predic.restartServer', async () => {
+             await serverManager.stop();
+             await new Promise(r => setTimeout(r, 1000));
+             await serverManager.start();
+        }),
+
         vscode.commands.registerCommand('predic.explainCode', () => {
             const editor = vscode.window.activeTextEditor;
             if (editor && !editor.selection.isEmpty) {
@@ -44,17 +56,9 @@ export async function activate(context: vscode.ExtensionContext) {
                 
                 chatProvider.triggerAnalysis("Find and fix any errors in this code. Return the fixed code block.", code);
             }
-        }),
-
-        vscode.commands.registerCommand('predic.restartServer', async () => {
-             // ... existing restart logic ...
-             await serverManager.stop();
-             await new Promise(r => setTimeout(r, 1000));
-             await serverManager.start();
         })
     );
 
-    // Inline Completion
     context.subscriptions.push(
         vscode.languages.registerInlineCompletionItemProvider({ pattern: "**" }, inlineProvider)
     );

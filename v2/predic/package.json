@@ -2,7 +2,7 @@
   "name": "predic",
   "displayName": "Predic",
   "description": "Offline AI coding assistant with local LLMs",
-  "version": "0.0.2",
+  "version": "0.0.3",
   "engines": {
     "vscode": "^1.85.0"
   },
@@ -19,22 +19,37 @@
         "icon": "$(settings-gear)"
       },
       {
+        "command": "predic.clearChat",
+        "title": "Clear Chat",
+        "category": "Predic",
+        "icon": "$(clear-all)"
+      },
+      {
+        "command": "predic.openInEditor",
+        "title": "Move to Editor",
+        "category": "Predic",
+        "icon": "$(screen-full)"
+      },
+      {
+        "command": "predic.closeChat",
+        "title": "Close Chat",
+        "category": "Predic",
+        "icon": "$(close)"
+      },
+      {
         "command": "predic.startServer",
         "title": "Start Server",
-        "category": "Predic",
-        "icon": "$(play)"
+        "category": "Predic"
       },
       {
         "command": "predic.stopServer",
         "title": "Stop Server",
-        "category": "Predic",
-        "icon": "$(stop)"
+        "category": "Predic"
       },
       {
         "command": "predic.restartServer",
         "title": "Restart Server",
-        "category": "Predic",
-        "icon": "$(refresh)"
+        "category": "Predic"
       },
       {
         "command": "predic.explainCode",
@@ -63,7 +78,7 @@
           "id": "predic.chatView",
           "name": "Chat",
           "icon": "media/sidebar-icon.svg",
-          "contextualTitle": "Predic Chat"
+          "contextualTitle": "Predic"
         }
       ]
     },
@@ -105,10 +120,24 @@
     "menus": {
       "view/title": [
         {
+          "command": "predic.openInEditor",
+          "when": "view == predic.chatView",
+          "group": "navigation@1"
+        },
+        {
+          "command": "predic.clearChat",
+          "when": "view == predic.chatView",
+          "group": "navigation@2"
+        },
+        {
           "command": "predic.openModelManager",
           "when": "view == predic.chatView",
-          "group": "navigation",
-          "title": "Settings & Models"
+          "group": "navigation@3"
+        },
+        {
+          "command": "predic.closeChat",
+          "when": "view == predic.chatView",
+          "group": "navigation@4"
         }
       ],
       "editor/context": [
@@ -152,6 +181,6 @@
   "dependencies": {
     "@vscode/codicons": "^0.0.40",
     "axios": "^1.6.5",
-    "openai": "^6.9.1"
+    "openai": "^4.24.1"
   }
 }
