@@ -1,24 +1,10 @@
 node_modules/
 dist/
-uv.lock
-pnpm-lock.yaml
 
-# Dependencies
-package-lock.json
-bun.lock
-
-*.pyc
-.venv/
-*/__pycache__/*
-*.onnx
-*.pyo
-*.pt
-*.pth
-*.pytorch_model.bin
-*.parquet
-*.safetensors
+*.exe
+*.gguf
 *.bin
-*.ckpt
-*.lock
-*.mdb
-*.vsix
+*.log
+*.bat
+
+package-lock.json

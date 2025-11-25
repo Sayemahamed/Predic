@@ -1,118 +1,48 @@
 //@ts-check
+
 'use strict';
 
 const path = require('path');
-const webpack = require('webpack');
 
-/**
- * @param {any} env
- * @param {{ mode: 'production' | 'development' }} argv
- * @returns {import('webpack').Configuration[]}
- */
-module.exports = (env, argv) => {
-  const isDevelopment = argv.mode === 'development';
+//@ts-check
+/** @typedef {import('webpack').Configuration} WebpackConfig **/
 
-  // Common configuration
-  const commonConfig = {
-    target: 'node',
-    devtool: isDevelopment ? 'source-map' : false,
-    resolve: {
-      extensions: ['.ts', '.js'],
-      mainFields: ['main', 'module'],
-    },
-    module: {
-      rules: [
-        {
-          test: /\.ts$/,
-          exclude: /node_modules/,
-          use: [
-            {
-              loader: 'ts-loader',
-              options: {
-                transpileOnly: isDevelopment,
-                compilerOptions: {
-                  sourceMap: isDevelopment,
-                },
-              },
-            },
-          ],
-        },
-      ],
-    },
-    stats: isDevelopment ? 'minimal' : 'normal',
-  };
+/** @type WebpackConfig */
+const extensionConfig = {
+  target: 'node', // VS Code extensions run in a Node.js-context 📖 -> https://webpack.js.org/configuration/node/
+	mode: 'none', // this leaves the source code as close as possible to the original (when packaging we set this to 'production')
 
-  // Extension configuration
-  const extensionConfig = {
-    ...commonConfig,
-    name: 'extension',
-    entry: './src/extension.ts',
-    output: {
-      path: path.resolve(__dirname, 'dist'),
-      filename: 'extension.js',
-      libraryTarget: 'commonjs2',
-      devtoolModuleFilenameTemplate: '../[resource-path]',
-    },
-    externals: {
-      vscode: 'commonjs vscode',
-    },
-    plugins: [
-      new webpack.DefinePlugin({
-        'process.env.NODE_ENV': JSON.stringify(argv.mode || 'development'),
-      }),
-    ],
-  };
-
-  // Agent configuration
-  const agentConfig = {
-    ...commonConfig,
-    name: 'agent',
-    entry: './src/agent.ts',
-    output: {
-      path: path.resolve(__dirname, 'dist'),
-      filename: 'agent.js',
-      libraryTarget: 'commonjs2',
-      devtoolModuleFilenameTemplate: '../[resource-path]',
-    },
-    externals: {
-      // Externalize the entire transformers package and its dependencies
-      '@xenova/transformers': 'commonjs @xenova/transformers',
-      'onnxruntime-node': 'commonjs onnxruntime-node',
-      'sharp': 'commonjs sharp',
-      // Node.js built-ins
-      child_process: 'commonjs child_process',
-      fs: 'commonjs fs',
-      path: 'commonjs path',
-      os: 'commonjs os',
-      crypto: 'commonjs crypto',
-      stream: 'commonjs stream',
-      util: 'commonjs util',
-      events: 'commonjs events',
-      http: 'commonjs http',
-      https: 'commonjs https',
-      url: 'commonjs url',
-      zlib: 'commonjs zlib',
-    },
-    plugins: [
-      new webpack.DefinePlugin({
-        'process.env.NODE_ENV': JSON.stringify(argv.mode || 'development'),
-      }),
-      // Ignore native modules and binaries
-      new webpack.IgnorePlugin({
-        resourceRegExp: /\.node$/,
-      }),
-      new webpack.IgnorePlugin({
-        resourceRegExp: /^fsevents$/,
-      }),
-    ],
-    optimization: {
-      minimize: !isDevelopment,
-    },
-    node: {
-      __dirname: false,
-      __filename: false,
-    },
-  };
-
-  return [extensionConfig, agentConfig];
+  entry: './src/extension.ts', // the entry point of this extension, 📖 -> https://webpack.js.org/configuration/entry-context/
+  output: {
+    // the bundle is stored in the 'dist' folder (check package.json), 📖 -> https://webpack.js.org/configuration/output/
+    path: path.resolve(__dirname, 'dist'),
+    filename: 'extension.js',
+    libraryTarget: 'commonjs2'
+  },
+  externals: {
+    vscode: 'commonjs vscode' // the vscode-module is created on-the-fly and must be excluded. Add other modules that cannot be webpack'ed, 📖 -> https://webpack.js.org/configuration/externals/
+    // modules added here also need to be added in the .vscodeignore file
+  },
+  resolve: {
+    // support reading TypeScript and JavaScript files, 📖 -> https://github.com/TypeStrong/ts-loader
+    extensions: ['.ts', '.js']
+  },
+  module: {
+    rules: [
+      {
+        test: /\.ts$/,
+        exclude: /node_modules/,
+        use: [
+          {
+            loader: 'ts-loader'
+          }
+        ]
+      }
+    ]
+  },
+  devtool: 'nosources-source-map',
+  infrastructureLogging: {
+    level: "log", // enables logging required for problem matchers
+  },
 };
+module.exports = [ extensionConfig ];
