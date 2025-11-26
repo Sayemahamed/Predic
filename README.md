@@ -1,71 +1,99 @@
-# predic README
+# 🔮 Predic: Your Offline & Private AI Coding Assistant
 
-This is the README for your extension "predic". After writing up a brief description, we recommend including the following sections.
+<p align="center">
+  <img src="https://raw.githubusercontent.com/Sayemahamed/Predic/main/media/assets/logo.png" width="120" />
+</p>
 
-## Features
+<p align="center">
+  <strong>The Private, Offline AI Coding Companion for VS Code.</strong>
+</p>
 
-Describe specific features of your extension including screenshots of your extension in action. Image paths are relative to this README file.
+[![VS Code Marketplace](https://img.shields.io/visual-studio-marketplace/v/your-publisher.predic?style=for-the-badge&label=Marketplace&color=blue)](https://marketplace.visualstudio.com/items?itemName=your-publisher.predic)
+[![Installs](https://img.shields.io/visual-studio-marketplace/i/your-publisher.predic?style=for-the-badge&color=green)](https://marketplace.visualstudio.com/items?itemName=your-publisher.predic)
+[![Rating](https://img.shields.io/visual-studio-marketplace/r/your-publisher.predic?style=for-the-badge&color=yellow)](https://marketplace.visualstudio.com/items?itemName=your-publisher.predic)
 
-For example if there is an image subfolder under your extension project workspace:
+**Predic** is a powerful AI coding assistant that runs 100% locally on your machine. It provides chat assistance, code explanation, and intelligent inline completions ("ghost text") without sending a single line of your code to the cloud.
 
-\!\[feature X\]\(images/feature-x.png\)
-
-> Tip: Many popular extensions utilize animations. This is an excellent way to show off your extension! We recommend short, focused animations that are easy to follow.
-
-## Requirements
-
-If you have any requirements or dependencies, add a section describing those and how to install and configure them.
-
-## Extension Settings
-
-Include if your extension adds any VS Code settings through the `contributes.configuration` extension point.
-
-For example:
-
-This extension contributes the following settings:
-
-* `myExtension.enable`: Enable/disable this extension.
-* `myExtension.thing`: Set to `blah` to do something.
-
-## Known Issues
-
-Calling out known issues can help limit users opening duplicate issues against your extension.
-
-## Release Notes
-
-Users appreciate release notes as you update your extension.
-
-### 1.0.0
-
-Initial release of ...
-
-### 1.0.1
-
-Fixed issue #.
-
-### 1.1.0
-
-Added features X, Y, and Z.
+![Predic Demo](media/predic-demo.gif)
 
 ---
 
-## Following extension guidelines
+## ✨ Why Predic?
 
-Ensure that you've read through the extensions guidelines and follow the best practices for creating your extension.
+-   **🔒 100% Privacy**: Your code never leaves your device. Ideal for enterprise or sensitive projects.
+-   **⚡ Offline Capable**: Works perfectly without an internet connection (after initial model download).
+-   **🧠 Bring Your Own Model**: Compatible with any GGUF model supported by [KoboldCpp](https://github.com/LostRuins/koboldcpp) (Qwen, DeepSeek, Llama 3, Phi-3).
+-   **💰 Free**: No subscription fees. You own the compute.
 
-* [Extension Guidelines](https://code.visualstudio.com/api/references/extension-guidelines)
+## 🚀 Features
 
-## Working with Markdown
+### 💬 Context-Aware Chat
+Chat with your codebase naturally.
+-   **Smart Context**: Type `@filename` to instantly add a file's content to the AI's context window.
+-   **Streaming Responses**: Real-time, typewriter-style generation.
+-   **Pro UI**: Clean, native VS Code interface with syntax highlighting, copy/edit/insert actions, and file chips.
 
-You can author your README using Visual Studio Code. Here are some useful editor keyboard shortcuts:
+### 👻 Inline Code Completion
+Get "Ghost Text" suggestions as you type in the editor.
+-   **FIM Support**: Uses "Fill-In-the-Middle" technology to understand code *before* and *after* your cursor.
+-   **Low Latency**: Optimized for speed on consumer hardware.
 
-* Split the editor (`Cmd+\` on macOS or `Ctrl+\` on Windows and Linux).
-* Toggle preview (`Shift+Cmd+V` on macOS or `Shift+Ctrl+V` on Windows and Linux).
-* Press `Ctrl+Space` (Windows, Linux, macOS) to see a list of Markdown snippets.
+### 🎛️ Model Dashboard
+A dedicated control center for your AI.
+-   **Model Manager**: Download curated high-performance coding models (like Qwen 2.5-Coder) directly from the UI.
+-   **One-Click Switch**: Instantly swap between different models for different tasks (e.g., a small model for speed, a large model for complex logic).
+-   **Official Models**: Try **ReaComplete**, our fine-tuned model optimized for React/TypeScript.
 
-## For more information
+### 🛠️ Productivity Tools
+-   **Explain Code**: Right-click any selection > `Predic: Explain Selection`.
+-   **Fix Errors**: Right-click > `Predic: Fix Error`.
 
-* [Visual Studio Code's Markdown Support](http://code.visualstudio.com/docs/languages/markdown)
-* [Markdown Syntax Reference](https://help.github.com/articles/markdown-basics/)
+## 📦 Requirements
 
-**Enjoy!**
+Since Predic runs locally, your hardware matters:
+-   **OS**: Windows, macOS, or Linux.
+-   **RAM**: Minimum 8GB (for small models), 16GB+ recommended.
+-   **GPU (Optional)**: NVIDIA GPU with 6GB+ VRAM is highly recommended for faster response times.
+
+## 🔧 Setup Guide
+
+1.  **Install the Extension** from the VS Code Marketplace.
+2.  **Download the Engine**:
+    -   Predic relies on **KoboldCpp** to run models.
+    -   Download the latest `koboldcpp` executable from [here](https://github.com/LostRuins/koboldcpp/releases).
+3.  **Open the Dashboard**:
+    -   Click the **Predic Icon** in the Activity Bar.
+    -   Click the **Settings/Gear Icon** in the Chat header.
+    -   Point Predic to your `koboldcpp.exe` (or binary).
+4.  **Download a Model**:
+    -   In the Dashboard, click **Download** on one of the "Recommended Models" (e.g., Qwen 2.5 Coder 1.5B).
+5.  **Start Coding**:
+    -   Click **Load** on your downloaded model.
+    -   Go back to the Chat tab and say "Hello!".
+
+## ⚙️ Extension Settings
+
+You can configure Predic in VS Code Settings (`Ctrl+,`):
+
+| Setting | Description |
+| :--- | :--- |
+| `predic.koboldCppPath` | Full path to your `koboldcpp` executable. |
+| `predic.modelDir` | Folder where your `.gguf` models are stored. |
+| `predic.gpuLayers` | Number of model layers to offload to your GPU (`-1` for auto). |
+| `predic.contextSize` | Maximum context window in tokens (Default: `8192`). |
+| `predic.port` | Local server port (Default: `5001`). |
+
+## 🤝 Contributing
+
+Predic is open source! We welcome issues, feature requests, and pull requests.
+Check out our [GitHub Repository](https://github.com/Sayemahamed/Predic).
+
+## 📄 License
+
+[MIT License](LICENSE)
+
+---
+
+## 🙏 Acknowledgements
+
+* A huge thank you to the team behind [koboldcpp](https://github.com/https://github.com/LostRuins/koboldcpp) for making local, in-browser, and in-app AI accessible to everyone.
