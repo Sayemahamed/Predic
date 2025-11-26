@@ -88,6 +88,8 @@ You can configure Predic in VS Code Settings (`Ctrl+,`):
 Predic is open source! We welcome issues, feature requests, and pull requests.
 Check out our [GitHub Repository](https://github.com/Sayemahamed/Predic).
 
+**Note:** If you want to add features or fix bugs, please check out the [Developer Guide](INSTRUCTIONS.md).
+
 ## 📄 License
 
 [MIT License](LICENSE)
