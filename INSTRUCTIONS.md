@@ -54,6 +54,15 @@ To create an installable file for distribution:
     ```
 3.  This will generate `predic-0.0.3.vsix`. You can share this file or install it manually via the Extensions view -> `...` -> `Install from VSIX`.
 
+## 🤝 Contribution
+
+If you want to add features or fix bugs, please follow the steps given below:
+ - Fork the repository.
+ - Create your feature branch (git checkout -b feature/AmazingFeature).
+ - Commit your changes (git commit -m 'Add some AmazingFeature').
+ - Push to the branch (git push origin feature/AmazingFeature).
+ - Open a Pull Request.
+
 ## 📂 Project Architecture
 
 -   **`src/extension.ts`**: The entry point. Registers commands and activates the extension.
