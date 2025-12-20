@@ -374,3 +374,48 @@ pre {
 .chip-close:hover { opacity: 1; }
 
 .hidden { display: none !important; }
+
+/* --- Thinking Block (New) --- */
+.thinking-block {
+    margin-bottom: 12px;
+    border: 1px solid var(--vscode-editorWidget-border);
+    border-radius: 6px;
+    background: var(--vscode-editor-inactiveSelectionBackground);
+    overflow: hidden;
+}
+
+.thinking-block summary {
+    padding: 8px 12px;
+    font-size: 11px;
+    font-weight: 600;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: var(--vscode-descriptionForeground);
+    user-select: none;
+    list-style: none; /* Hide default triangle */
+}
+
+/* Custom chevron rotation */
+.thinking-block summary svg:last-child {
+    margin-left: auto;
+    transition: transform 0.2s ease;
+    opacity: 0.7;
+}
+
+.thinking-block[open] summary svg:last-child {
+    transform: rotate(180deg);
+}
+
+.thinking-content {
+    padding: 10px 12px;
+    font-size: 12px;
+    font-family: var(--vscode-editor-font-family);
+    color: var(--vscode-descriptionForeground);
+    border-top: 1px solid var(--vscode-editorWidget-border);
+    white-space: pre-wrap;
+    opacity: 0.9;
+    background: var(--vscode-editor-background);
+    line-height: 1.5;
+}

@@ -176,8 +176,30 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
     private async handleUserMessage(content: string) {
         if (!this._view) return;
 
+        // 1. IMPROVED LANGUAGE DETECTION
+        let languageHint = 'text';
+        
+        // Strategy A: Check attached file
+        if (this.activeFileName && this.activeFileName !== "Selection") {
+            languageHint = this.activeFileName.split('.').pop() || 'text';
+        } 
+        // Strategy B: Check Active Editor
+        else if (vscode.window.activeTextEditor) {
+            languageHint = vscode.window.activeTextEditor.document.languageId;
+        } 
+        // Strategy C: Check Visible Editors (Fallback if focus is lost)
+        else if (vscode.window.visibleTextEditors.length > 0) {
+            languageHint = vscode.window.visibleTextEditors[0].document.languageId;
+        }
+
         this._view.webview.postMessage({ type: 'addMessage', role: 'user', content: content });
-        this._view.webview.postMessage({ type: 'startStream', role: 'assistant' });
+        
+        // Pass the detected language
+        this._view.webview.postMessage({ 
+            type: 'startStream', 
+            role: 'assistant', 
+            language: languageHint 
+        });
 
         try {
             let fullPrompt = "";
