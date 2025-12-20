@@ -2,6 +2,7 @@
   "name": "predic",
   "displayName": "Predic",
   "publisher": "predic",
+  "tags": ["ai", "copilot", "offline", "llm", "chat", "python", "javascript", "productivity"],
   "icon": "media/assets/logo.png",
   "description": "Offline AI coding assistant with local LLMs",
   "version": "0.0.3",
@@ -164,7 +165,8 @@
     "watch-tests": "tsc -p . -w --outDir out",
     "pretest": "npm run compile-tests && npm run compile && npm run lint",
     "lint": "eslint src --ext ts",
-    "test": "vscode-test"
+    "test": "vscode-test",
+    "prepublish": "npm run compile"
   },
   "devDependencies": {
     "@types/mocha": "^10.0.6",

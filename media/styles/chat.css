@@ -314,19 +314,26 @@ pre {
 }
 
 .model-dropdown {
-    background-color: transparent;
-    color: var(--vscode-descriptionForeground);
-    border: 1px solid transparent;
+    background-color: var(--vscode-dropdown-background); /* CHANGED: Use standard dropdown background */
+    color: var(--vscode-dropdown-foreground); /* CHANGED: Use standard dropdown text color */
+    border: 1px solid var(--vscode-dropdown-border); /* Optional: Use standard border */
     border-radius: 4px;
     padding: 2px 4px;
-    font-size: 11px;
+    font-size: 0.85em;
     outline: none;
     cursor: pointer;
-    max-width: 140px;
+    max-width: 140px; /* Slightly wider to accommodate text */
 }
 .model-dropdown:hover {
-    background-color: var(--vscode-toolbar-hoverBackground);
-    color: var(--vscode-foreground);
+    background-color: var(--vscode-dropdown-background); /* Keep bg same on hover, or use hover color if available */
+    border-color: var(--vscode-focusBorder); /* Highlight border on hover */
+}
+.model-dropdown:focus {
+    border-color: var(--vscode-focusBorder); /* Standard focus behavior */
+}
+.model-dropdown option {
+    background-color: var(--vscode-dropdown-background); /* CHANGED: Use standard dropdown background */
+    color: var(--vscode-dropdown-foreground); /* CHANGED: Use standard dropdown text color */
 }
 
 .send-btn {

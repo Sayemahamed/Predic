@@ -12,6 +12,14 @@ const PREDIC_MODELS = [
         size: 'Unknown', 
         filename: 'ReaComplete-Q4_K_M.gguf',
         url: 'https://huggingface.co/Sayempro/ReaComplete/resolve/main/ReaComplete-Q4_K_M.gguf' 
+    },
+    {
+        id: 'MLPredic-3b',
+        name: 'MLPredic-3b (Fine-Tuned)',
+        description: 'Our official specialized model optimized for Machine Learning code assistance.',
+        size: '1.89 GB', 
+        filename: 'MLPredic-3b-Q4_K_M.gguf',
+        url: 'https://huggingface.co/duttaturja/MLPredic-3B/blob/main/MLPredic-3b-Q4_K_M.gguf' 
     }
 ];
 
