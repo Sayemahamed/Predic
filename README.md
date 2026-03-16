@@ -14,7 +14,7 @@
 
 **Predic** is a powerful AI coding assistant that runs 100% locally on your machine. It provides chat assistance, code explanation, and intelligent inline completions ("ghost text") without sending a single line of your code to the cloud.
 
-![Predic Demo](media/predic-demo.gif)
+<!-- ![Predic Demo](media/predic-demo.gif) -->
 
 ---
 
