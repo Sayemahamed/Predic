@@ -92,7 +92,7 @@ Check out our [GitHub Repository](https://github.com/Sayemahamed/Predic).
 
 ## 📄 License
 
-[MIT License](LICENSE)
+[License](LICENSE)
 
 ---
 
