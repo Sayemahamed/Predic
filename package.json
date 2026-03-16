@@ -5,9 +5,13 @@
   "tags": ["ai", "copilot", "offline", "llm", "chat", "python", "javascript", "productivity"],
   "icon": "media/assets/logo.png",
   "description": "Offline AI coding assistant with local LLMs",
-  "version": "0.0.3",
+  "version": "0.0.2",
   "engines": {
     "vscode": "^1.85.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Sayemahamed/Predic.git"
   },
   "activationEvents": [
     "onStartupFinished"
