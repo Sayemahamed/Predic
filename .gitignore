@@ -8,3 +8,7 @@ dist/
 *.bat
 
 package-lock.json
+
+*.jsonl
+*.csv
+*.txt
